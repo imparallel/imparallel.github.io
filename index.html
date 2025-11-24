@@ -4,944 +4,294 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PARALLEL LEE</title>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@900&family=Noto+Sans+KR:wght@700&display=swap"
-        rel="stylesheet">
+    <title>Parallel's Playground v2</title>
     <style>
-        /* 1. 변수 설정 */
-        :root {
-            --bg-color: #ffffff;
-            --text-color: #000000;
-            --grid-color: rgba(0, 0, 0, 0.05);
-            --shadow-color: rgba(0, 0, 0, 0.2);
-            --p-yellow: #FFD700;
-            --p-red: #FF0055;
-            --p-blue: #0099FF;
-            --p-black: #000000;
-            --p-gray: #aaaaaa;
-            --bs-blue: #0022AA;
-        }
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
 
-        body.dark-mode {
-            --bg-color: #0a0a0a;
-            --text-color: #ffffff;
-            --grid-color: rgba(255, 255, 255, 0.05);
-            --shadow-color: rgba(255, 255, 255, 0.2);
-            --p-black: #ffffff;
-        }
-
-        /* 스크롤 원천 봉쇄 */
-        html,
-        body {
+        * {
             margin: 0;
             padding: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            position: fixed;
-        }
-
-        body {
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            font-family: 'Montserrat', sans-serif;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            transition: background-color 0.5s ease, color 0.5s ease;
-            cursor: crosshair;
-            touch-action: none;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        body.allow-scroll .content-layer {
-            pointer-events: auto;
-            overflow-y: auto;
-        }
-
-        .grid-bg {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-image: linear-gradient(var(--grid-color) 1px, transparent 1px), linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
-            background-size: 40px 40px;
-            z-index: -10;
-            pointer-events: none;
-            transition: opacity 0.3s;
-        }
-
-        body.hide-grid .grid-bg {
-            opacity: 0;
-        }
-
-        /* 2. 도형 구조 */
-        .positioner {
-            position: absolute;
-            z-index: 15;
-            /* 앞으로 튀어나옴 */
-            cursor: grab;
-            /* 손바닥 모양 */
-            top: 50%;
-            left: 50%;
-            transition: transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.5s;
-        }
-
-        .floater {
-            width: 100%;
-            height: 100%;
-        }
-
-        .shape {
-            display: block;
-            opacity: 0.9;
-            will-change: transform;
-            transition: transform 0.1s linear;
-        }
-
-        body.paused .floater {
-            animation-play-state: paused !important;
-        }
-
-        /* [책상 정리] clamp로 이동 거리 제어 */
-        body.cleared .pos-triangle {
-            transform: translate(clamp(-120px, -15vmin, -40px), clamp(-120px, -15vmin, -40px)) !important;
-            opacity: 0.15;
-        }
-
-        body.cleared .pos-circle {
-            transform: translate(clamp(40px, 15vmin, 120px), clamp(40px, 15vmin, 120px)) !important;
-            opacity: 0.15;
-        }
-
-        body.cleared .pos-pause {
-            transform: translate(clamp(40px, 15vmin, 140px), clamp(-120px, -15vmin, -40px)) !important;
-            opacity: 0.15;
-        }
-
-        .main-content-wrapper {
-            text-align: center;
-            z-index: 10;
-            transition: transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.5s;
-        }
-
-        body.cleared .main-content-wrapper {
-            transform: translateY(-10vh) scale(0.9);
-            opacity: 0.15;
-            pointer-events: none;
-        }
-
-        /* 시스템 버튼 흐리게 */
-        body.cleared .system-status {
-            opacity: 0.15;
-            pointer-events: none;
-        }
-
-        /* 가젯 버튼들 흐리게 */
-        body.cleared .control-panel {
-            opacity: 0.15;
-            pointer-events: none;
-        }
-
-        .nav {
-            margin-top: 50px;
-            display: flex;
-            gap: clamp(20px, 5vmin, 60px);
-            z-index: 20;
-            transition: transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.5s;
-        }
-
-        body.cleared .nav {
-            transform: translateY(10vh);
-            opacity: 0.15;
-            pointer-events: none;
-        }
-
-
-        /* [TRUE FLUID MATH - vmin으로 대동단결] */
-
-        /* 노란 세모 (왼쪽 위) */
-        .pos-triangle {
-            margin-left: clamp(-500px, -45vmin, -120px);
-            margin-top: clamp(-350px, -30vmin, -100px);
-        }
-
-        .float-triangle {
-            animation: float-tri 12s ease-in-out infinite alternate;
-        }
-
-        .shape-triangle {
-            width: 0;
-            height: 0;
-            border-left: clamp(80px, 10vmin, 140px) solid transparent;
-            border-right: clamp(80px, 10vmin, 140px) solid transparent;
-            border-bottom: clamp(144px, 18vmin, 252px) solid var(--p-yellow);
-            transform: rotate(-15deg);
-            filter: drop-shadow(8px 8px 0px var(--shadow-color));
-        }
-
-        /* 빨간 원 (오른쪽 아래) */
-        .pos-circle {
-            margin-left: clamp(80px, 25vmin, 350px);
-            margin-top: clamp(90px, 20vmin, 250px);
-        }
-
-        .float-circle {
-            animation: float-circ 15s ease-in-out infinite alternate-reverse;
-        }
-
-        .shape-circle-shadow {
-            filter: drop-shadow(8px 8px 0px var(--shadow-color));
-        }
-
-        .shape-circle-inner {
-            width: clamp(80px, 12vmin, 200px);
-            height: clamp(80px, 12vmin, 200px);
-            background-color: var(--p-red);
-            border-radius: 50%;
-            -webkit-mask-image: radial-gradient(circle at 50% 38%, transparent 15%, black 16%);
-            mask-image: radial-gradient(circle at 50% 38%, transparent 15%, black 16%);
-        }
-
-        /* 파란 막대 (오른쪽 위) */
-        .pos-pause {
-            margin-left: clamp(60px, 22vmin, 300px);
-            margin-top: clamp(-300px, -22vmin, -80px);
-        }
-
-        .float-pause {
-            animation: float-pause 14s ease-in-out infinite alternate;
-        }
-
-        .shape-pause-container {
-            display: flex;
-            gap: clamp(10px, 1.5vmin, 25px);
-            transform: rotate(10deg);
-        }
-
-        .shape-pause-bar {
-            width: clamp(20px, 3vmin, 45px);
-            height: clamp(120px, 16vmin, 260px);
-            background-color: var(--p-blue);
-            box-shadow: 8px 8px 0px var(--shadow-color);
-        }
-
-        @keyframes float-tri {
-            0% {
-                transform: rotate(-5deg) translate(0, 0);
-            }
-
-            100% {
-                transform: rotate(5deg) translate(20px, -20px);
-            }
-        }
-
-        @keyframes float-circ {
-            0% {
-                transform: translate(0, 0);
-            }
-
-            100% {
-                transform: translate(-15px, 15px);
-            }
-        }
-
-        @keyframes float-pause {
-            0% {
-                transform: rotate(-5deg) translate(0, 0);
-            }
-
-            100% {
-                transform: rotate(5deg) translate(10px, -10px);
-            }
-        }
-
-        /* UI 요소 */
-        .glitch-wrapper {
-            position: relative;
-            cursor: pointer;
-            user-select: none;
-            display: inline-block;
-        }
-
-        .glitch {
-            font-size: clamp(3rem, 10vmin, 7rem);
-            font-weight: 900;
-            text-transform: uppercase;
-            letter-spacing: -0.02em;
-            position: relative;
-            display: inline-block;
-        }
-
-        @media (hover: hover) {
-
-            .glitch-wrapper:hover .glitch,
-            .glitch-wrapper.glitching-active .glitch {
-                text-shadow: -4px -4px 0 var(--p-yellow), 4px -4px 0 var(--p-red), 0px 4px 0 var(--p-blue);
-                animation: glitch-shake 0.1s infinite;
-            }
-        }
-
-        .glitch-wrapper.glitching-active .glitch {
-            text-shadow: -4px -4px 0 var(--p-yellow), 4px -4px 0 var(--p-red), 0px 4px 0 var(--p-blue);
-            animation: glitch-shake 0.1s infinite;
-        }
-
-        @keyframes glitch-shake {
-            0% {
-                transform: translate(1px, 1px);
-            }
-
-            50% {
-                transform: translate(-1px, 1px);
-            }
-
-            100% {
-                transform: translate(0, 0);
-            }
-        }
-
-        .role-container {
-            margin-top: 15px;
-            display: inline-flex;
-            gap: 8px;
-            justify-content: center;
-            align-items: center;
-            font-family: 'Noto Sans KR', sans-serif;
-            font-size: clamp(0.8rem, 2vmin, 1.3rem);
-            font-weight: 700;
-            background: var(--p-black);
-            color: var(--bg-color);
-            padding: 8px 25px;
-            transform: skewX(-10deg);
-            transition: background 0.3s, color 0.3s;
-        }
-
-        .role-item {
-            transform: skewX(10deg);
-        }
-
-        .role-dot {
-            transform: skewX(10deg);
-            font-size: 0.8rem;
-            color: var(--p-gray);
-        }
-
-        .nav {
-            margin-top: 50px;
-            display: flex;
-            gap: clamp(20px, 5vmin, 60px);
-            z-index: 20;
-            transition: transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.5s;
-        }
-
-        .nav-link {
-            text-decoration: none;
-            color: var(--text-color);
-            font-size: clamp(1rem, 2.5vmin, 1.5rem);
-            font-weight: 900;
-            text-transform: uppercase;
-            position: relative;
-            transition: 0.3s;
-            cursor: pointer;
-            padding: 10px;
-        }
-
-        .nav-link::after {
-            content: '';
-            position: absolute;
-            bottom: 5px;
-            left: 10px;
-            right: 10px;
-            height: 4px;
-            background-color: currentColor;
-            transition: 0.3s;
-            width: 0%;
-        }
-
-        .nav-link:hover::after {
-            width: calc(100% - 20px);
-        }
-
-        @media (hover: hover) {
-            .nav-link[data-target="projects"]:hover {
-                color: var(--p-yellow);
-                transform: scale(1.1) rotate(-2deg);
-            }
-
-            .nav-link[data-target="resume"]:hover {
-                color: var(--p-red);
-                transform: scale(1.1) rotate(2deg);
-            }
-
-            .nav-link[data-target="link"]:hover {
-                color: var(--p-blue);
-                transform: scale(1.1) rotate(-2deg);
-            }
-        }
-
-        .content-layer {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
-            z-index: 100;
-            padding: 20px;
             box-sizing: border-box;
         }
 
-        body.cleared .content-layer {
-            opacity: 1;
-            pointer-events: auto;
+        body {
+            width: 100vw;
+            height: 100vh;
+            background-color: #F9F9F9;
+            /* 부드러운 화이트 */
+            color: #111;
+            font-family: 'Pretendard', sans-serif;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
         }
 
-        .content-box {
-            max-width: 900px;
-            width: 85%;
-            max-height: 70vh;
-            background: rgba(255, 255, 255, 0.95);
-            color: #000;
-            padding: clamp(20px, 5vmin, 40px);
-            border: 2px solid var(--p-black);
-            box-shadow: 15px 15px 0px var(--shadow-color);
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
+        /* UI 레이어 (물리 엔진 위에 떠있음) */
+        .ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            /* 클릭은 물리 엔진으로 통과 */
+            z-index: 10;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
         }
 
-        body.dark-mode .content-box {
-            background: rgba(0, 0, 0, 0.95);
-            color: #fff;
-            border: 2px solid var(--p-black);
-        }
-
-        .content-layer h2 {
-            font-size: clamp(2.5rem, 6vmin, 4rem);
-            margin-bottom: 20px;
-            text-transform: uppercase;
-            text-shadow: 2px 2px 0px var(--shadow-color);
-            text-align: center;
-            transition: color 0.3s;
-        }
-
-        .content-box p {
-            font-family: 'Montserrat', sans-serif;
-            font-size: clamp(1.5rem, 3vmin, 2.5rem);
-            font-weight: 900;
+        header h1 {
+            font-size: 2rem;
+            font-weight: 800;
             letter-spacing: -0.05em;
-            margin: 0;
-            text-align: center;
+            line-height: 1.1;
+            mix-blend-mode: exclusion;
+            /* 배경색과 섞이는 힙한 효과 */
         }
 
-        .close-btn {
-            margin-top: 30px;
-            padding: 15px 40px;
-            background-color: var(--p-black);
-            color: var(--bg-color);
-            border: none;
-            cursor: pointer;
-            font-family: 'Montserrat', sans-serif;
-            font-weight: 700;
-            font-size: 1.2rem;
+        header p {
+            font-size: 0.9rem;
+            margin-top: 8px;
+            font-weight: 500;
+            opacity: 0.6;
+        }
+
+        .status-bar {
+            display: flex;
+            gap: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .tag {
+            background: #111;
+            color: #fff;
+            padding: 4px 12px;
+            border-radius: 100px;
             text-transform: uppercase;
-            transition: 0.3s;
-            box-shadow: 5px 5px 0px var(--shadow-color);
-            flex-shrink: 0;
         }
 
-        @media (hover: hover) {
-            .close-btn:hover {
-                color: var(--bg-color);
-                transform: translate(-2px, -2px);
-                box-shadow: 7px 7px 0px var(--shadow-color);
-            }
+        footer {
+            text-align: right;
         }
 
-        body.mode-projects .content-layer h2 {
-            color: var(--p-yellow);
-        }
-
-        body.mode-projects .close-btn:hover {
-            background-color: var(--p-yellow);
-        }
-
-        body.mode-resume .content-layer h2 {
-            color: var(--p-red);
-        }
-
-        body.mode-resume .close-btn:hover {
-            background-color: var(--p-red);
-        }
-
-        body.mode-link .content-layer h2 {
-            color: var(--p-blue);
-        }
-
-        body.mode-link .close-btn:hover {
-            background-color: var(--p-blue);
-        }
-
-        .system-status {
-            position: fixed;
-            top: 30px;
-            right: clamp(20px, 5vmin, 40px);
-            font-family: 'Montserrat', sans-serif;
+        footer .big-text {
+            font-size: 3.5rem;
             font-weight: 900;
-            font-size: clamp(0.8rem, 2vmin, 1rem);
-            cursor: pointer;
-            user-select: none;
-            border: 2px solid var(--text-color);
-            padding: 10px 20px;
-            text-transform: uppercase;
-            transition: 0.3s;
-            z-index: 100;
-            background: var(--p-white);
+            line-height: 0.9;
+            letter-spacing: -0.08em;
+            color: #111;
         }
 
-        @media (hover: hover) {
-            .system-status:hover {
-                background-color: var(--text-color);
-                color: var(--bg-color);
-            }
+        footer .sub-text {
+            font-size: 1rem;
+            margin-top: 10px;
+            font-weight: 400;
         }
 
-        .system-status::before {
-            content: '';
-            display: inline-block;
-            width: 10px;
-            height: 10px;
-            background-color: #00ff41;
-            border-radius: 50%;
-            margin-right: 10px;
-            box-shadow: 0 0 5px #00ff41;
-            transition: 0.3s;
-        }
-
-        body.dark-mode .system-status::before {
-            background-color: var(--bs-blue);
-            box-shadow: 0 0 5px var(--bs-blue);
-        }
-
-        .cursor-trail {
+        /* 캔버스 (물리 엔진) */
+        #world {
             position: absolute;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            pointer-events: none;
-            transform: translate(-50%, -50%);
-            animation: fade-out 0.5s forwards;
-            z-index: 999;
-        }
-
-        @keyframes fade-out {
-            to {
-                opacity: 0;
-                transform: translate(-50%, -50%) scale(0.5);
-            }
-        }
-
-        .control-panel {
-            position: fixed;
-            bottom: 40px;
-            left: clamp(20px, 5vmin, 40px);
-            display: flex;
-            flex-direction: column-reverse;
-            gap: 20px;
-            z-index: 100;
-        }
-
-        .ctrl-btn {
-            width: clamp(45px, 6vmin, 60px);
-            height: clamp(45px, 6vmin, 60px);
-            border-radius: 50%;
-            border: 2px solid var(--text-color);
-            background: var(--p-white);
-            color: var(--text-color);
-            font-size: 1.8rem;
-            cursor: pointer;
-            transition: 0.3s;
-            box-shadow: none;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 0;
-            line-height: 1;
-            touch-action: manipulation;
-        }
-
-        @media (hover: hover) {
-            .ctrl-btn:hover {
-                transform: scale(1.1);
-                background: var(--p-white);
-            }
-        }
-
-        .ctrl-btn.active {
-            opacity: 0.4;
-            transform: scale(0.9);
-            background: var(--p-white);
-        }
-
-        @media (max-width: 768px) {
-            .content-box {
-                width: 85vw;
-                padding: 25px;
-                max-height: 60vh;
-            }
-
-            .control-panel {
-                bottom: 20px;
-                left: 20px;
-                gap: 10px;
-            }
-
-            .ctrl-btn {
-                width: 45px;
-                height: 45px;
-                font-size: 1.2rem;
-            }
-        }
-
-        /* 중력장 효과 (Gravity Lens) */
-        .gravity-hole {
-            position: absolute;
-            width: 150px;
-            height: 150px;
-            border-radius: 50%;
-            transform: translate(-50%, -50%) scale(0);
-            /* 처음엔 0 */
-            pointer-events: none;
-            /* 클릭 통과 */
-            z-index: 5;
-            /* 그리드 위, 도형 아래 */
-
-            /* [핵심] 공간 왜곡 착시 효과 */
-            /* 배경을 흐리게 뭉개서 왜곡된 것처럼 보이게 함 */
-            backdrop-filter: blur(3px) contrast(1.2);
-            -webkit-backdrop-filter: blur(3px) contrast(1.2);
-
-            /* 중력장 테두리 느낌 */
-            border: 2px solid rgba(0, 0, 0, 0.1);
-            background: radial-gradient(circle, transparent 0%, rgba(0, 0, 0, 0.05) 100%);
-
-            /* 빨려 들어가는 애니메이션 */
-            animation: gravity-suck 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-        }
-
-        /* 다크모드일 때 중력장 색상 반전 */
-        body.dark-mode .gravity-hole {
-            border-color: rgba(255, 255, 255, 0.1);
-            background: radial-gradient(circle, transparent 0%, rgba(255, 255, 255, 0.05) 100%);
-        }
-
-        /* 애니메이션: 커졌다가 -> 슉 사라짐 */
-        @keyframes gravity-suck {
-            0% {
-                transform: translate(-50%, -50%) scale(0.5);
-                opacity: 0;
-            }
-
-            20% {
-                opacity: 1;
-            }
-
-            100% {
-                transform: translate(-50%, -50%) scale(2.5);
-                opacity: 0;
-            }
-        }
-
-        /* 드래그 가능 표시 */
-        .positioner {
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
             cursor: grab;
         }
 
-        .positioner:active {
+        #world:active {
             cursor: grabbing;
-            z-index: 1000;
-            /* 잡은 건 제일 위로 */
+        }
+
+        /* 힌트 메시지 */
+        .hint {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ccc;
+            font-size: 0.9rem;
+            pointer-events: none;
+            animation: blink 2s infinite;
+        }
+
+        @keyframes blink {
+
+            0%,
+            100% {
+                opacity: 0.5;
+            }
+
+            50% {
+                opacity: 0;
+            }
         }
     </style>
 </head>
 
 <body>
-    <div class="grid-bg"></div>
-    <div class="system-status" id="systemBtn">SYSTEM: ONLINE</div>
-    <div class="control-panel">
-        <button class="ctrl-btn" id="btnGrid" title="Toggle Grid [G]">🕸️</button>
-        <button class="ctrl-btn" id="btnTrail" title="Toggle Trail [T]">✨</button>
-        <button class="ctrl-btn" id="btnFreeze" title="Freeze Time [F]">🧊</button>
-    </div>
 
-    <div class="positioner pos-triangle">
-        <div class="floater float-triangle">
-            <div class="shape shape-triangle"></div>
-        </div>
-    </div>
-    <div class="positioner pos-circle">
-        <div class="floater float-circle">
-            <div class="shape shape-circle-shadow">
-                <div class="shape-circle-inner"></div>
+    <canvas id="world"></canvas>
+
+    <div class="hint">DRAG & THROW OBJECTS</div>
+
+    <div class="ui-layer">
+        <header>
+            <div class="status-bar">
+                <span class="tag">Parallel Lee</span>
             </div>
-        </div>
-    </div>
-    <div class="positioner pos-pause">
-        <div class="floater float-pause">
-            <div class="shape shape-pause-container">
-                <div class="shape-pause-bar"></div>
-                <div class="shape-pause-bar"></div>
+            <br>
+            <h1>PLAYFUL<br>REFRESHING<br>LITERAL</h1>
+            <p>Creator / Musician / Designer</p>
+        </header>
+
+        <footer>
+            <div class="big-text">
+                SHAKE<br>YOUR<br>WORLD.
             </div>
-        </div>
+            <div class="sub-text">Touch & Drag everything.</div>
+        </footer>
     </div>
 
-    <div class="main-content-wrapper">
-        <div class="glitch-wrapper" id="logoClick">
-            <h1 class="glitch" data-text="PARALLEL LEE">PARALLEL LEE</h1>
-        </div>
-        <br>
-        <div class="role-container"><span class="role-item">Creator</span><span class="role-dot">·</span><span
-                class="role-item">Musician</span><span class="role-dot">·</span><span class="role-item">Designer</span>
-        </div>
-    </div>
-
-    <div class="nav">
-        <a class="nav-link" data-target="projects">Projects</a>
-        <a class="nav-link" data-target="resume">Resume</a>
-        <a class="nav-link" data-target="link">Link</a>
-    </div>
-
-    <div class="content-layer">
-        <h2 id="contentTitle">PROJECTS</h2>
-        <div class="content-box">
-            <p>COMING SOON</p>
-        </div>
-        <button class="close-btn" id="closeBtn">Back to Desk</button>
-    </div>
-
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
     <script>
-        const systemBtn = document.getElementById('systemBtn'); const body = document.body;
-        function toggleMode() { body.classList.toggle('dark-mode'); systemBtn.innerText = body.classList.contains('dark-mode') ? "SYSTEM: OFFLINE" : "SYSTEM: ONLINE"; }
+        // 1. Matter.js 모듈 별칭 설정
+        const Engine = Matter.Engine,
+            Render = Matter.Render,
+            Runner = Matter.Runner,
+            Bodies = Matter.Bodies,
+            Composite = Matter.Composite,
+            Mouse = Matter.Mouse,
+            MouseConstraint = Matter.MouseConstraint,
+            Events = Matter.Events;
 
-        const logoClick = document.getElementById('logoClick');
-        const glitchBox = logoClick;
-        let touchTimer;
-        glitchBox.addEventListener('touchstart', (e) => { e.preventDefault(); glitchBox.classList.add('glitching-active'); });
-        glitchBox.addEventListener('touchend', (e) => { e.preventDefault(); glitchBox.classList.remove('glitching-active'); toggleMode(); });
-        glitchBox.addEventListener('click', (e) => { toggleMode(); });
-        systemBtn.addEventListener('click', toggleMode);
+        // 2. 엔진 생성
+        const engine = Engine.create();
+        const world = engine.world;
 
-        const btnFreeze = document.getElementById('btnFreeze'); const btnTrail = document.getElementById('btnTrail'); const btnGrid = document.getElementById('btnGrid');
-        let trailEnabled = true;
-        function toggleFreeze() { body.classList.toggle('paused'); btnFreeze.classList.toggle('active'); }
-        function toggleTrail() { trailEnabled = !trailEnabled; btnTrail.classList.toggle('active'); }
-        function toggleGrid() { body.classList.toggle('hide-grid'); btnGrid.classList.toggle('active'); }
-        btnFreeze.addEventListener('click', toggleFreeze); btnTrail.addEventListener('click', toggleTrail); btnGrid.addEventListener('click', toggleGrid);
-
-        document.addEventListener('keydown', (e) => {
-            if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
-            const key = e.key.toLowerCase();
-            if (key === 'f') toggleFreeze(); if (key === 't') toggleTrail(); if (key === 'g') toggleGrid(); if (key === 's') toggleMode();
-        });
-
-        const interactiveShapes = document.querySelectorAll('.shape-triangle, .shape-circle-shadow, .shape-pause-container');
-        // [NEW] 젤리 물리엔진 변수
-        let lastX = 0;
-        let tiltX = 0;
-
-        function handleMove(x, y) {
-            // 책상 치웠을 땐 중지
-            if (body.classList.contains('cleared')) return;
-
-            // 트레일 효과 (기존 유지)
-            if (trailEnabled) {
-                const trail = document.createElement('div'); trail.className = 'cursor-trail';
-                trail.style.left = `${x}px`; trail.style.top = `${y}px`;
-                const colors = ['#FFD700', '#FF0055', '#0099FF']; trail.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-                document.body.appendChild(trail); setTimeout(() => trail.remove(), 500);
+        // 3. 렌더러 생성
+        const canvas = document.getElementById('world');
+        const render = Render.create({
+            element: document.body,
+            canvas: canvas,
+            engine: engine,
+            options: {
+                width: window.innerWidth,
+                height: window.innerHeight,
+                background: 'transparent',
+                wireframes: false, // 솔리드 컬러 렌더링
+                showAngleIndicator: false
             }
+        });
 
-            if (body.classList.contains('paused')) return;
+        // 4. 벽 생성 (화면 밖으로 나가지 않게)
+        function createWalls() {
+            const wallOptions = {
+                isStatic: true,
+                render: { fillStyle: 'transparent' }
+            };
+            const width = window.innerWidth;
+            const height = window.innerHeight;
 
-            // [NEW] 속도 계산 (이번 위치 - 지난번 위치 = 속도)
-            const velocityX = x - lastX;
-            lastX = x;
+            Composite.clear(world, false, true);
 
-            // 관성 적용 (속도의 10%만큼 기울임, 최대 15도 제한)
-            // 마우스가 오른쪽으로 가면 도형은 왼쪽으로 쏠리는 듯한 저항감
-            tiltX = Math.max(Math.min(velocityX * -0.1, 15), -15);
-
-            const cx = window.innerWidth / 2; const cy = window.innerHeight / 2;
-            const mx = (cx - x) / 100; const my = (cy - y) / 100;
-
-            interactiveShapes.forEach(shape => {
-                let speed = 0.05;
-                if (shape.classList.contains('shape-circle-shadow')) speed = -0.08;
-                if (shape.classList.contains('shape-pause-container')) speed = 0.04;
-                if (shape.classList.contains('shape-rect')) speed = -0.02;
-
-                // [NEW] skewX(${tiltX}deg) 추가 -> 이게 젤리 효과의 핵심!
-                // 기존 회전값에 + 기울기(tilt)를 더해서 휘청거리게 만듦
-                shape.style.transform = `translate(${mx * speed * 100}px, ${my * speed * 100}px) rotate(${mx * speed * 100 + tiltX}deg) skewX(${tiltX}deg)`;
-            });
+            Composite.add(world, [
+                Bodies.rectangle(width / 2, -50, width, 100, wallOptions), // 위
+                Bodies.rectangle(width / 2, height + 50, width, 100, wallOptions), // 아래
+                Bodies.rectangle(width + 50, height / 2, 100, height, wallOptions), // 오른쪽
+                Bodies.rectangle(-50, height / 2, 100, height, wallOptions) // 왼쪽
+            ]);
         }
-        document.addEventListener('mousemove', e => handleMove(e.pageX, e.pageY));
-        document.addEventListener('touchmove', e => { if (!body.classList.contains('allow-scroll')) { } handleMove(e.touches[0].pageX, e.touches[0].pageY); }, { passive: false });
+        createWalls();
 
-        const navLinks = document.querySelectorAll('.nav-link'); const closeBtn = document.getElementById('closeBtn'); const contentTitle = document.getElementById('contentTitle');
-        navLinks.forEach(link => {
-            link.addEventListener('click', (e) => {
-                e.preventDefault(); const target = link.getAttribute('data-target');
-                body.classList.remove('mode-projects', 'mode-resume', 'mode-link'); body.classList.add(`mode-${target}`);
-                contentTitle.innerText = target; body.classList.add('cleared'); body.classList.add('allow-scroll');
-            });
-        });
-        closeBtn.addEventListener('click', () => { body.classList.remove('cleared'); body.classList.remove('allow-scroll'); });
-        // [NEW] 중력장 생성기 (Gravity Field)
-        function createGravity(x, y) {
-            const hole = document.createElement('div');
-            hole.className = 'gravity-hole';
-            hole.style.left = `${x}px`;
-            hole.style.top = `${y}px`;
-            document.body.appendChild(hole);
+        // 5. 평행 님의 로고 색상 적용
+        // 로고에서 추출한 색상 (검정, 노랑, 파랑, 빨강)
+        const colors = ['#000000', '#FBD014', '#00B0F0', '#FF004E'];
 
-            // 애니메이션 끝나면(0.6s) 삭제 (쓰레기 수거)
-            setTimeout(() => hole.remove(), 600);
-        }
+        function createShape(x, y) {
+            const size = 40 + Math.random() * 40;
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            const type = Math.random();
 
-        // 1. 데스크탑: 클릭 시 발동
-        document.addEventListener('click', (e) => {
-            // 버튼이나 링크를 눌렀을 땐 발동 안 하게 (빈 공간만)
-            if (e.target.tagName === 'A' || e.target.tagName === 'BUTTON') return;
-            createGravity(e.clientX, e.clientY);
-        });
-
-        // 2. 모바일: 꾹 누르기 (Long Press) 감지
-        let longPressTimer;
-        const longPressDuration = 500; // 0.5초 꾹 누르면 발동
-
-        document.addEventListener('touchstart', (e) => {
-            // 버튼 등은 제외
-            if (e.target.tagName === 'A' || e.target.tagName === 'BUTTON') return;
-
-            const touch = e.touches[0];
-            const x = touch.clientX;
-            const y = touch.clientY;
-
-            longPressTimer = setTimeout(() => {
-                createGravity(x, y);
-                // 꾹 눌렀다는 진동 피드백 (모바일 지원 기기만)
-                if (navigator.vibrate) navigator.vibrate(50);
-            }, longPressDuration);
-        }, { passive: true });
-
-        document.addEventListener('touchend', () => {
-            clearTimeout(longPressTimer); // 손 떼면 타이머 취소
-        });
-        document.addEventListener('touchmove', () => {
-            clearTimeout(longPressTimer); // 움직이면 타이머 취소 (스크롤 할 때 오작동 방지)
-        });
-        // [NEW] 드래그 앤 드롭 시스템 (Draggable Physics)
-        // 3. [핵심] 안전 드래그 엔진 (Safety Drag)
-        const draggables = document.querySelectorAll('.positioner');
-        let activeItem = null;
-        let startX = 0, startY = 0;
-        let startMarginLeft = 0, startMarginTop = 0;
-
-        draggables.forEach(item => {
-            item.addEventListener('mousedown', dragStart);
-            item.addEventListener('touchstart', dragStart, { passive: false });
-        });
-
-        function dragStart(e) {
-            if (body.classList.contains('cleared')) return;
-
-            activeItem = this;
-            // 드래그 시작할 때 트랜지션을 꺼서 즉각 반응하게 함
-            activeItem.style.transition = "none";
-
-            if (e.type === 'touchstart') {
-                startX = e.touches[0].clientX;
-                startY = e.touches[0].clientY;
+            let body;
+            // 도형 다양화 (원, 사각형, 다각형)
+            if (type < 0.33) {
+                body = Bodies.circle(x, y, size / 2, {
+                    render: { fillStyle: color },
+                    restitution: 0.9 // 탄성 (통통 튀게)
+                });
+            } else if (type < 0.66) {
+                body = Bodies.rectangle(x, y, size, size, {
+                    render: { fillStyle: color },
+                    restitution: 0.9,
+                    chamfer: { radius: 10 } // 둥근 모서리
+                });
             } else {
-                e.preventDefault();
-                startX = e.clientX;
-                startY = e.clientY;
+                body = Bodies.polygon(x, y, 3, size / 1.5, { // 삼각형
+                    render: { fillStyle: color },
+                    restitution: 0.9
+                });
             }
-
-            // 현재 픽셀 위치 저장
-            const style = window.getComputedStyle(activeItem);
-            startMarginLeft = parseFloat(style.marginLeft);
-            startMarginTop = parseFloat(style.marginTop);
+            return body;
         }
 
-        function drag(e) {
-            if (!activeItem) return;
-            e.preventDefault();
+        // 초기 오브젝트 투입
+        for (let i = 0; i < 15; i++) {
+            const x = Math.random() * window.innerWidth;
+            const y = Math.random() * window.innerHeight;
+            Composite.add(world, createShape(x, y));
+        }
 
-            let clientX, clientY;
-            if (e.type === 'touchmove') {
-                clientX = e.touches[0].clientX;
-                clientY = e.touches[0].clientY;
-            } else {
-                clientX = e.clientX;
-                clientY = e.clientY;
+        // 6. 마우스/터치 상호작용 추가
+        const mouse = Mouse.create(render.canvas);
+        const mouseConstraint = MouseConstraint.create(engine, {
+            mouse: mouse,
+            constraint: {
+                stiffness: 0.2,
+                render: { visible: false }
             }
+        });
+        Composite.add(world, mouseConstraint);
 
-            const dx = clientX - startX;
-            const dy = clientY - startY;
+        // 스크롤 방지 (터치 시)
+        render.canvas.addEventListener("wheel", (e) => e.preventDefault());
+        render.canvas.addEventListener("touchmove", (e) => e.preventDefault());
 
-            // 마진을 픽셀 단위로 실시간 업데이트
-            activeItem.style.marginLeft = `${startMarginLeft + dx}px`;
-            activeItem.style.marginTop = `${startMarginTop + dy}px`;
-        }
 
-        function dragEnd() {
-            if (!activeItem) return;
+        // 7. 클릭 시 새로운 오브젝트 생성 (Playful 요소)
+        Events.on(mouseConstraint, 'mousedown', function (event) {
+            // 빈 공간 클릭 시 생성
+            if (!mouseConstraint.body) {
+                const newBody = createShape(event.mouse.position.x, event.mouse.position.y);
+                Composite.add(world, newBody);
+            }
+        });
 
-            // 1. 현재 위치 파악
-            const style = window.getComputedStyle(activeItem);
-            const currentLeft = parseFloat(style.marginLeft);
-            const currentTop = parseFloat(style.marginTop);
+        // 8. 실행
+        Render.run(render);
+        const runner = Runner.create();
+        Runner.run(runner, engine);
 
-            // 2. 화면 비율(%)로 변환
-            let vw = (currentLeft / window.innerWidth) * 100;
-            let vh = (currentTop / window.innerHeight) * 100;
+        // 리사이즈 대응
+        window.addEventListener('resize', () => {
+            render.canvas.width = window.innerWidth;
+            render.canvas.height = window.innerHeight;
+        });
 
-            // 3. [가드레일] 화면 밖 가출 방지
-            vw = Math.max(Math.min(vw, 45), -45);
-            vh = Math.max(Math.min(vh, 45), -45);
+        // 모바일 자이로 센서 (중력 제어)
+        window.addEventListener('deviceorientation', (event) => {
+            const gravity = engine.world.gravity;
+            if (event.gamma !== null) { // 모바일 감지
+                gravity.x = event.gamma / 10; // 좌우 기울기
+                gravity.y = event.beta / 10;  // 상하 기울기
+            }
+        });
 
-            // 4. 위치 적용
-            activeItem.style.marginLeft = `${vw}vw`;
-            activeItem.style.marginTop = `${vh}vh`;
-
-            // 5. [핵심 수정] 부드러운 움직임 복구
-            // activeItem을 null로 만들기 전에, 'currentItem'이라는 변수에 범인을 확보해둡니다.
-            const currentItem = activeItem;
-
-            setTimeout(() => {
-                // 확보해둔 currentItem에게 명령을 내립니다. (이제 에러 안 남!)
-                // style.transition = "" 로 비워주면, 원래 CSS 파일에 있는 transition 규칙이 되살아납니다.
-                currentItem.style.transition = "";
-            }, 50);
-
-            activeItem = null; // 이제 안심하고 지워도 됨
-        }
-
-        // 이벤트 리스너
-        document.addEventListener('mousemove', drag);
-        document.addEventListener('mouseup', dragEnd);
-        document.addEventListener('touchmove', drag, { passive: false });
-        document.addEventListener('touchend', dragEnd);
     </script>
 </body>
 
