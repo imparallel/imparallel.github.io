@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Parallel's Playground</title>
+    <title>Parallel's Playground Final v2</title>
     <style>
         @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
 
@@ -19,7 +19,7 @@
             flex-direction: column;
             justify-content: space-between;
             position: relative;
-            touch-action: none; /* 모바일 제스처 방지 */
+            touch-action: none;
         }
 
         .ui-layer {
@@ -92,23 +92,37 @@
             z-index: 1;
             outline: none;
         }
-        
-        /* 힌트 애니메이션 */
-        .hint {
+
+        /* 시작 버튼 오버레이 */
+        #start-overlay {
             position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: #ccc;
-            font-size: 0.9rem;
-            pointer-events: none;
-            text-align: center;
-            animation: fadeOut 4s forwards;
-            animation-delay: 2s;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(249, 249, 249, 0.9);
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(5px);
+            transition: opacity 0.5s;
         }
 
-        @keyframes fadeOut {
-            to { opacity: 0; }
+        #start-btn {
+            background: #111;
+            color: #fff;
+            border: none;
+            padding: 20px 40px;
+            font-size: 1.2rem;
+            font-weight: 800;
+            border-radius: 100px;
+            cursor: pointer;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
         }
     </style>
 </head>
@@ -116,8 +130,8 @@
 
     <canvas id="world"></canvas>
 
-    <div class="hint">
-        @im_parallel<br>
+    <div id="start-overlay">
+        <button id="start-btn">TOUCH TO UNLOCK GRAVITY</button>
     </div>
 
     <div class="ui-layer">
@@ -134,7 +148,7 @@
             <div class="big-text">
                 SHAKE<br>YOUR<br>WORLD.
             </div>
-            <div class="sub-text">Do What You Wanna Do.</div>
+            <div class="sub-text">Touch & Drag everything.</div>
         </footer>
     </div>
 
@@ -150,11 +164,11 @@
               Events = Matter.Events,
               Body = Matter.Body;
 
-        // 1. 엔진 생성
+        // 1. 엔진 초기화
         const engine = Engine.create();
         const world = engine.world;
 
-        // 2. 렌더러 생성 (좌표 정확도를 위해 pixelRatio 제거)
+        // 2. 렌더러
         const canvas = document.getElementById('world');
         const render = Render.create({
             element: document.body,
@@ -169,12 +183,12 @@
             }
         });
 
-        // 3. 벽 생성 (화면 밖 이탈 방지)
+        // 3. 벽 생성
         let walls = [];
         function createWalls() {
             const width = window.innerWidth;
             const height = window.innerHeight;
-            const thickness = 1000; // 아주 두꺼운 벽
+            const thickness = 1000;
             
             const wallOptions = { 
                 isStatic: true, 
@@ -182,20 +196,19 @@
                 restitution: 1.0 
             };
 
-            // 기존 벽 제거 후 재생성
             Composite.remove(world, walls);
             
             walls = [
-                Bodies.rectangle(width/2, -thickness/2, width + thickness, thickness, wallOptions), // 상
-                Bodies.rectangle(width/2, height + thickness/2, width + thickness, thickness, wallOptions), // 하
-                Bodies.rectangle(width + thickness/2, height/2, thickness, height + thickness, wallOptions), // 우
-                Bodies.rectangle(-thickness/2, height/2, thickness, height + thickness, wallOptions) // 좌
+                Bodies.rectangle(width/2, -thickness/2, width + thickness, thickness, wallOptions),
+                Bodies.rectangle(width/2, height + thickness/2, width + thickness, thickness, wallOptions),
+                Bodies.rectangle(width + thickness/2, height/2, thickness, height + thickness, wallOptions),
+                Bodies.rectangle(-thickness/2, height/2, thickness, height + thickness, wallOptions)
             ];
             Composite.add(world, walls);
         }
         createWalls();
 
-        // 4. 오브젝트 생성 (검은색 제외: 노랑, 파랑, 빨강)
+        // 4. 오브젝트 생성 (노랑, 파랑, 빨강)
         const colors = ['#FBD014', '#00B0F0', '#FF004E']; 
 
         function createShape(x, y) {
@@ -205,7 +218,7 @@
 
             const commonOptions = {
                 render: { fillStyle: color },
-                restitution: 0.9, // 탄성
+                restitution: 0.9,
                 friction: 0.001,
                 density: 0.005
             };
@@ -221,7 +234,6 @@
             return body;
         }
 
-        // 초기 오브젝트 생성
         for (let i = 0; i < 20; i++) {
             Composite.add(world, createShape(
                 Math.random() * window.innerWidth, 
@@ -229,7 +241,7 @@
             ));
         }
 
-        // 5. 마우스 컨트롤 (중요: 캔버스 크기와 1:1 매칭)
+        // 5. 마우스 컨트롤
         const mouse = Mouse.create(render.canvas);
         const mouseConstraint = MouseConstraint.create(engine, {
             mouse: mouse,
@@ -240,11 +252,9 @@
         });
         Composite.add(world, mouseConstraint);
 
-        // 스크롤/터치 기본 동작 방지
         render.canvas.addEventListener("wheel", (e) => e.preventDefault(), { passive: false });
         render.canvas.addEventListener("touchmove", (e) => e.preventDefault(), { passive: false });
 
-        // 클릭 시 오브젝트 추가
         Events.on(mouseConstraint, 'mousedown', function(event) {
             if (!mouseConstraint.body) {
                 Composite.add(world, createShape(event.mouse.position.x, event.mouse.position.y));
@@ -256,58 +266,82 @@
         const runner = Runner.create();
         Runner.run(runner, engine);
 
-        // 7. 리사이즈 대응 (간단하고 확실하게)
         window.addEventListener('resize', () => {
-            const width = window.innerWidth;
-            const height = window.innerHeight;
+            render.canvas.width = window.innerWidth;
+            render.canvas.height = window.innerHeight;
+            createWalls();
+        });
 
-            render.canvas.width = width;
-            render.canvas.height = height;
+
+        // ==========================================
+        // 🔥 핵심: 모바일 권한 요청 로직
+        // ==========================================
+        const startBtn = document.getElementById('start-btn');
+        const overlay = document.getElementById('start-overlay');
+
+        function startSensor() {
+            // 오버레이 숨김
+            overlay.style.opacity = '0';
+            setTimeout(() => overlay.style.display = 'none', 500);
+
+            // 기울기 감지
+            window.addEventListener('deviceorientation', (event) => {
+                if (event.gamma !== null) {
+                    engine.world.gravity.x = Math.min(Math.max(event.gamma / 20, -1), 1);
+                    engine.world.gravity.y = Math.min(Math.max(event.beta / 20, -1), 1);
+                }
+            });
+
+            // 흔들기 감지
+            let lastX, lastY, lastZ;
+            let moveCounter = 0;
             
-            createWalls(); // 벽 위치 재조정
-        });
+            window.addEventListener('devicemotion', (event) => {
+                let acc = event.accelerationIncludingGravity;
+                if (!acc.x) return;
+                if (!lastX) { lastX = acc.x; lastY = acc.y; lastZ = acc.z; return; }
 
-        // 8. 모바일 기능 (기울기 & 흔들기)
-        window.addEventListener('deviceorientation', (event) => {
-            if (event.gamma !== null) {
-                // 부드러운 중력 이동
-                engine.world.gravity.x = Math.min(Math.max(event.gamma / 20, -1), 1);
-                engine.world.gravity.y = Math.min(Math.max(event.beta / 20, -1), 1);
-            }
-        });
+                let deltaX = Math.abs(acc.x - lastX);
+                let deltaY = Math.abs(acc.y - lastY);
+                let deltaZ = Math.abs(acc.z - lastZ);
 
-        // 흔들기 감지
-        let lastX, lastY, lastZ;
-        let moveCounter = 0;
-        
-        window.addEventListener('devicemotion', (event) => {
-            let acc = event.accelerationIncludingGravity;
-            if (!acc.x) return;
-            if (!lastX) { lastX = acc.x; lastY = acc.y; lastZ = acc.z; return; }
+                if (deltaX + deltaY + deltaZ > 25) { 
+                    moveCounter++;
+                } else {
+                    moveCounter = Math.max(0, moveCounter - 1);
+                }
 
-            let deltaX = Math.abs(acc.x - lastX);
-            let deltaY = Math.abs(acc.y - lastY);
-            let deltaZ = Math.abs(acc.z - lastZ);
+                if (moveCounter > 2) {
+                    Composite.allBodies(world).forEach(body => {
+                        if (!body.isStatic) {
+                            Body.applyForce(body, body.position, {
+                                x: (Math.random() - 0.5) * 0.1,
+                                y: (Math.random() - 0.5) * 0.1
+                            });
+                        }
+                    });
+                    moveCounter = 0;
+                }
+                lastX = acc.x; lastY = acc.y; lastZ = acc.z;
+            });
+        }
 
-            if (deltaX + deltaY + deltaZ > 25) { // 감도
-                moveCounter++;
+        startBtn.addEventListener('click', () => {
+            // iOS 13+ 권한 요청
+            if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+                DeviceMotionEvent.requestPermission()
+                    .then(permissionState => {
+                        if (permissionState === 'granted') {
+                            startSensor();
+                        } else {
+                            alert('센서 권한을 허용해야 중력 기능을 즐길 수 있어요!');
+                        }
+                    })
+                    .catch(console.error);
             } else {
-                moveCounter = Math.max(0, moveCounter - 1);
+                // 안드로이드 또는 구형 기기 (바로 시작)
+                startSensor();
             }
-
-            if (moveCounter > 2) {
-                // Shake Action: 모든 물체를 랜덤하게 튕김
-                Composite.allBodies(world).forEach(body => {
-                    if (!body.isStatic) {
-                        Body.applyForce(body, body.position, {
-                            x: (Math.random() - 0.5) * 0.1, // 힘의 크기
-                            y: (Math.random() - 0.5) * 0.1
-                        });
-                    }
-                });
-                moveCounter = 0;
-            }
-            lastX = acc.x; lastY = acc.y; lastZ = acc.z;
         });
 
     </script>
