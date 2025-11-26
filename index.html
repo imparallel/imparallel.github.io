@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Parallel's Playground Final v2</title>
+    <title>Playground of Parallel</title>
     <style>
         @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
 
@@ -124,14 +124,37 @@
             50% { transform: scale(1.05); }
             100% { transform: scale(1); }
         }
+
+        /* 힌트 애니메이션 */
+        .hint {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ccc;
+            font-size: 0.9rem;
+            pointer-events: none;
+            text-align: center;
+            animation: fadeOut 4s forwards;
+            animation-delay: 2s;
+        }
+
+        @keyframes fadeOut {
+            to { opacity: 0; }
+        }
     </style>
 </head>
 <body>
 
     <canvas id="world"></canvas>
 
+    <div class="hint">
+        @im_parallel<br>
+        Playground of Parallel
+    </div>
+
     <div id="start-overlay">
-        <button id="start-btn">TOUCH TO UNLOCK GRAVITY</button>
+        <button id="start-btn">UNLOCK GRAVITY</button>
     </div>
 
     <div class="ui-layer">
@@ -146,9 +169,9 @@
 
         <footer>
             <div class="big-text">
-                SHAKE<br>YOUR<br>WORLD.
+                TILT<br>YOUR<br>WORLD.
             </div>
-            <div class="sub-text">Touch & Drag everything.</div>
+            <div class="sub-text">Do What You Wanna Do.</div>
         </footer>
     </div>
 
@@ -164,11 +187,11 @@
               Events = Matter.Events,
               Body = Matter.Body;
 
-        // 1. 엔진 초기화
+        // 엔진 초기화
         const engine = Engine.create();
         const world = engine.world;
 
-        // 2. 렌더러
+        // 렌더러
         const canvas = document.getElementById('world');
         const render = Render.create({
             element: document.body,
@@ -183,7 +206,7 @@
             }
         });
 
-        // 3. 벽 생성
+        // 벽 생성
         let walls = [];
         function createWalls() {
             const width = window.innerWidth;
@@ -208,7 +231,7 @@
         }
         createWalls();
 
-        // 4. 오브젝트 생성 (노랑, 파랑, 빨강)
+        // 오브젝트 생성 (노랑, 파랑, 빨강)
         const colors = ['#FBD014', '#00B0F0', '#FF004E']; 
 
         function createShape(x, y) {
@@ -241,7 +264,7 @@
             ));
         }
 
-        // 5. 마우스 컨트롤
+        // 마우스 컨트롤
         const mouse = Mouse.create(render.canvas);
         const mouseConstraint = MouseConstraint.create(engine, {
             mouse: mouse,
@@ -261,7 +284,7 @@
             }
         });
 
-        // 6. 실행
+        // 실행
         Render.run(render);
         const runner = Runner.create();
         Runner.run(runner, engine);
@@ -274,7 +297,7 @@
 
 
         // ==========================================
-        // 🔥 핵심: 모바일 권한 요청 로직
+        // 모바일 권한 요청 (Tilt 기능 활성화)
         // ==========================================
         const startBtn = document.getElementById('start-btn');
         const overlay = document.getElementById('start-overlay');
@@ -284,57 +307,27 @@
             overlay.style.opacity = '0';
             setTimeout(() => overlay.style.display = 'none', 500);
 
-            // 기울기 감지
+            // 기울기(Tilt) 감지
             window.addEventListener('deviceorientation', (event) => {
                 if (event.gamma !== null) {
+                    // 감도 조절: 너무 민감하지 않게 나누기 20
                     engine.world.gravity.x = Math.min(Math.max(event.gamma / 20, -1), 1);
                     engine.world.gravity.y = Math.min(Math.max(event.beta / 20, -1), 1);
                 }
             });
-
-            // 흔들기 감지
-            let lastX, lastY, lastZ;
-            let moveCounter = 0;
-            
-            window.addEventListener('devicemotion', (event) => {
-                let acc = event.accelerationIncludingGravity;
-                if (!acc.x) return;
-                if (!lastX) { lastX = acc.x; lastY = acc.y; lastZ = acc.z; return; }
-
-                let deltaX = Math.abs(acc.x - lastX);
-                let deltaY = Math.abs(acc.y - lastY);
-                let deltaZ = Math.abs(acc.z - lastZ);
-
-                if (deltaX + deltaY + deltaZ > 25) { 
-                    moveCounter++;
-                } else {
-                    moveCounter = Math.max(0, moveCounter - 1);
-                }
-
-                if (moveCounter > 2) {
-                    Composite.allBodies(world).forEach(body => {
-                        if (!body.isStatic) {
-                            Body.applyForce(body, body.position, {
-                                x: (Math.random() - 0.5) * 0.1,
-                                y: (Math.random() - 0.5) * 0.1
-                            });
-                        }
-                    });
-                    moveCounter = 0;
-                }
-                lastX = acc.x; lastY = acc.y; lastZ = acc.z;
-            });
         }
 
         startBtn.addEventListener('click', () => {
-            // iOS 13+ 권한 요청
+            // iOS 13+ 권한 요청 (흔들기는 뺐지만, 기울기에도 권한이 필요합니다!)
             if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
                 DeviceMotionEvent.requestPermission()
                     .then(permissionState => {
                         if (permissionState === 'granted') {
                             startSensor();
                         } else {
-                            alert('센서 권한을 허용해야 중력 기능을 즐길 수 있어요!');
+                            alert('센서 권한을 허용해야 기울기 기능이 작동해요!');
+                            // 거절해도 화면은 보여줌
+                            overlay.style.display = 'none';
                         }
                     })
                     .catch(console.error);
