@@ -1,13 +1,31 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Playground of Parallel</title>
+    <link rel="icon" href="icon.png" type="image/png">
+    <link rel="apple-touch-icon" href="icon.png">
+
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Playground of Parallel">
+    <meta property="og:description" content="TILT YOUR WORLD.">
+    <meta property="og:image" content="thumb.png">
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Playground of Parallel">
+    <meta name="twitter:description" content="TILT YOUR WORLD.">
+    <meta name="twitter:image" content="thumb.png">
     <style>
         @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
             width: 100vw;
             height: 100vh;
@@ -24,7 +42,10 @@
 
         .ui-layer {
             position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             pointer-events: none;
             z-index: 10;
             padding: 24px;
@@ -40,7 +61,7 @@
             line-height: 1.1;
             mix-blend-mode: exclusion;
         }
-        
+
         header p {
             font-size: 0.9rem;
             margin-top: 8px;
@@ -96,7 +117,10 @@
         /* 시작 버튼 오버레이 */
         #start-overlay {
             position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             background: rgba(249, 249, 249, 0.9);
             z-index: 100;
             display: flex;
@@ -115,14 +139,22 @@
             font-weight: 800;
             border-radius: 100px;
             cursor: pointer;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
             animation: pulse 2s infinite;
         }
 
         @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.05);
+            }
+
+            100% {
+                transform: scale(1);
+            }
         }
 
         /* 힌트 애니메이션 */
@@ -140,10 +172,13 @@
         }
 
         @keyframes fadeOut {
-            to { opacity: 0; }
+            to {
+                opacity: 0;
+            }
         }
     </style>
 </head>
+
 <body>
 
     <canvas id="world"></canvas>
@@ -178,14 +213,14 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
     <script>
         const Engine = Matter.Engine,
-              Render = Matter.Render,
-              Runner = Matter.Runner,
-              Bodies = Matter.Bodies,
-              Composite = Matter.Composite,
-              Mouse = Matter.Mouse,
-              MouseConstraint = Matter.MouseConstraint,
-              Events = Matter.Events,
-              Body = Matter.Body;
+            Render = Matter.Render,
+            Runner = Matter.Runner,
+            Bodies = Matter.Bodies,
+            Composite = Matter.Composite,
+            Mouse = Matter.Mouse,
+            MouseConstraint = Matter.MouseConstraint,
+            Events = Matter.Events,
+            Body = Matter.Body;
 
         // 엔진 초기화
         const engine = Engine.create();
@@ -212,27 +247,27 @@
             const width = window.innerWidth;
             const height = window.innerHeight;
             const thickness = 1000;
-            
-            const wallOptions = { 
-                isStatic: true, 
+
+            const wallOptions = {
+                isStatic: true,
                 render: { fillStyle: 'transparent' },
-                restitution: 1.0 
+                restitution: 1.0
             };
 
             Composite.remove(world, walls);
-            
+
             walls = [
-                Bodies.rectangle(width/2, -thickness/2, width + thickness, thickness, wallOptions),
-                Bodies.rectangle(width/2, height + thickness/2, width + thickness, thickness, wallOptions),
-                Bodies.rectangle(width + thickness/2, height/2, thickness, height + thickness, wallOptions),
-                Bodies.rectangle(-thickness/2, height/2, thickness, height + thickness, wallOptions)
+                Bodies.rectangle(width / 2, -thickness / 2, width + thickness, thickness, wallOptions),
+                Bodies.rectangle(width / 2, height + thickness / 2, width + thickness, thickness, wallOptions),
+                Bodies.rectangle(width + thickness / 2, height / 2, thickness, height + thickness, wallOptions),
+                Bodies.rectangle(-thickness / 2, height / 2, thickness, height + thickness, wallOptions)
             ];
             Composite.add(world, walls);
         }
         createWalls();
 
         // 오브젝트 생성 (노랑, 파랑, 빨강)
-        const colors = ['#FBD014', '#00B0F0', '#FF004E']; 
+        const colors = ['#FBD014', '#00B0F0', '#FF004E'];
 
         function createShape(x, y) {
             const size = 30 + Math.random() * 50;
@@ -248,18 +283,18 @@
 
             let body;
             if (type < 0.33) {
-                body = Bodies.circle(x, y, size/2, commonOptions);
+                body = Bodies.circle(x, y, size / 2, commonOptions);
             } else if (type < 0.66) {
                 body = Bodies.rectangle(x, y, size, size, { ...commonOptions, chamfer: { radius: 10 } });
             } else {
-                body = Bodies.polygon(x, y, 3, size/1.5, commonOptions);
+                body = Bodies.polygon(x, y, 3, size / 1.5, commonOptions);
             }
             return body;
         }
 
         for (let i = 0; i < 20; i++) {
             Composite.add(world, createShape(
-                Math.random() * window.innerWidth, 
+                Math.random() * window.innerWidth,
                 Math.random() * window.innerHeight
             ));
         }
@@ -278,7 +313,7 @@
         render.canvas.addEventListener("wheel", (e) => e.preventDefault(), { passive: false });
         render.canvas.addEventListener("touchmove", (e) => e.preventDefault(), { passive: false });
 
-        Events.on(mouseConstraint, 'mousedown', function(event) {
+        Events.on(mouseConstraint, 'mousedown', function (event) {
             if (!mouseConstraint.body) {
                 Composite.add(world, createShape(event.mouse.position.x, event.mouse.position.y));
             }
@@ -339,4 +374,5 @@
 
     </script>
 </body>
+
 </html>
