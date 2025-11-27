@@ -287,7 +287,10 @@
             } else if (type < 0.66) {
                 body = Bodies.rectangle(x, y, size, size, { ...commonOptions, chamfer: { radius: 10 } });
             } else {
-                body = Bodies.polygon(x, y, 3, size / 1.5, commonOptions);
+                body = Bodies.polygon(x, y, 3, size / 1.5, {
+                    ...commonOptions,
+                    chamfer: { radius: 5 } // 둥글기 정도 (숫자가 클수록 둥글어짐)
+                });
             }
             return body;
         }
