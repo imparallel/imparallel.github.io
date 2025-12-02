@@ -3,179 +3,112 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
     <title>Playground of Parallel</title>
-    <link rel="icon" href="icon.png" type="image/png">
-    <link rel="apple-touch-icon" href="icon.png">
-
+    
+    <link rel="icon" href="data:;base64,iVBORw0KGgo="> 
+    
     <meta property="og:type" content="website">
     <meta property="og:title" content="Playground of Parallel">
     <meta property="og:description" content="TILT YOUR WORLD.">
-    <meta property="og:image" content="thumb.png">
 
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Playground of Parallel">
-    <meta name="twitter:description" content="TILT YOUR WORLD.">
-    <meta name="twitter:image" content="thumb.png">
     <style>
         @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        /* 2. 전체 레이아웃 초기화 */
+        html, body {
+            width: 100%; height: 100%; margin: 0; padding: 0;
+            overflow: hidden; position: fixed; top: 0; left: 0;
+            background-color: #E0E0E0; /* 점화 전 색상 */
+            color: #111; font-family: 'Pretendard', sans-serif;
+            touch-action: none; -webkit-user-select: none; user-select: none;
+            transition: background-color 1.5s ease; /* 테마 변경 시 부드럽게 */
         }
+        
+        body.active { background-color: #F9F9F9; }
 
-        body {
-            width: 100vw;
-            height: 100vh;
-            background-color: #F9F9F9;
-            color: #111;
-            font-family: 'Pretendard', sans-serif;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            position: relative;
-            touch-action: none;
-        }
-
+        /* UI 레이어 */
         .ui-layer {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 10;
-            padding: 24px;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 10; padding: 24px;
+            box-sizing: border-box;
+            display: flex; flex-direction: column; justify-content: space-between;
         }
 
-        header h1 {
-            font-size: 2rem;
-            font-weight: 800;
-            letter-spacing: -0.05em;
-            line-height: 1.1;
-            mix-blend-mode: exclusion;
+        header h1 { font-size: 2rem; font-weight: 800; letter-spacing: -0.05em; line-height: 1.1; mix-blend-mode: exclusion; margin: 0; }
+        header p { font-size: 0.9rem; margin-top: 8px; font-weight: 500; opacity: 0.6; mix-blend-mode: exclusion; }
+        .status-bar { display: flex; gap: 12px; font-size: 0.8rem; font-weight: 600; mix-blend-mode: exclusion; }
+        .tag { background: #111; color: #fff; padding: 4px 12px; border-radius: 100px; text-transform: uppercase; }
+        
+        footer { text-align: right; pointer-events: none; }
+        footer .sub-text { font-size: 1rem; margin-top: 10px; font-weight: 400; mix-blend-mode: exclusion; }
+
+        /* 3. 타이포그래피 애니메이션 */
+        .big-text-container {
+            display: flex; flex-direction: column; align-items: flex-end;
+            font-size: 3.5rem; font-weight: 900; line-height: 0.9;
+            letter-spacing: -0.08em; color: #111; mix-blend-mode: exclusion;
+        }
+        
+        @media (max-width: 768px) {
+            .big-text-container { font-size: 2.5rem; }
+            header h1 { font-size: 1.5rem; }
         }
 
-        header p {
-            font-size: 0.9rem;
-            margin-top: 8px;
-            font-weight: 500;
-            opacity: 0.6;
+        .title-row { display: flex; overflow: hidden; }
+
+        .tilt-word {
+            display: inline-block; opacity: 0;
+            transform: translateX(100%);
+            transition: all 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+        
+        body.active .tilt-word {
+            opacity: 1; transform: translateX(0); 
+            margin-right: 0; /* 정렬 수정을 위해 마진 제거 */
         }
 
-        .status-bar {
-            display: flex;
-            gap: 12px;
-            font-size: 0.8rem;
-            font-weight: 600;
-        }
-
-        .tag {
-            background: #111;
-            color: #fff;
-            padding: 4px 12px;
-            border-radius: 100px;
-            text-transform: uppercase;
-        }
-
-        footer {
-            text-align: right;
-        }
-
-        footer .big-text {
-            font-size: 3.5rem;
-            font-weight: 900;
-            line-height: 0.9;
-            letter-spacing: -0.08em;
-            color: #111;
-            mix-blend-mode: exclusion;
-        }
-
-        footer .sub-text {
-            font-size: 1rem;
-            margin-top: 10px;
-            font-weight: 400;
-            mix-blend-mode: exclusion;
-        }
-
-        #world {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 1;
-            outline: none;
-        }
-
-        /* 시작 버튼 오버레이 */
-        #start-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(249, 249, 249, 0.9);
-            z-index: 100;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            backdrop-filter: blur(5px);
-            transition: opacity 0.5s;
-        }
-
-        #start-btn {
-            background: #111;
-            color: #fff;
-            border: none;
-            padding: 20px 40px;
-            font-size: 1.2rem;
-            font-weight: 800;
-            border-radius: 100px;
-            cursor: pointer;
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0% {
-                transform: scale(1);
-            }
-
-            50% {
-                transform: scale(1.05);
-            }
-
-            100% {
-                transform: scale(1);
-            }
-        }
-
-        /* 힌트 애니메이션 */
+        #world { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; outline: none; }
+        
         .hint {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: #ccc;
-            font-size: 0.9rem;
-            pointer-events: none;
-            text-align: center;
-            animation: fadeOut 4s forwards;
-            animation-delay: 2s;
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: #666; font-size: 0.9rem; pointer-events: none; text-align: center;
+            opacity: 1; transition: opacity 0.5s; mix-blend-mode: exclusion;
+            font-weight: 600; letter-spacing: 0.05em;
+        }
+        body.active .hint { opacity: 0; }
+
+        /* --- ✨ Dream UI --- */
+        .dream-controls {
+            position: absolute; bottom: 24px; left: 24px;
+            pointer-events: auto; display: flex; gap: 10px; align-items: center;
+            opacity: 0; transition: opacity 0.5s; pointer-events: none;
+        }
+        body.active .dream-controls { opacity: 1; pointer-events: auto; }
+
+        .dream-btn {
+            background: #111; color: #fff; border: none; padding: 10px 18px;
+            border-radius: 100px; font-family: 'Pretendard'; font-weight: 700;
+            cursor: pointer; font-size: 0.9rem; transition: transform 0.2s;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 6px;
+        }
+        .dream-btn:active { transform: scale(0.95); }
+        .dream-btn:disabled { opacity: 0.5; cursor: wait; }
+
+        .dream-input-container {
+            display: flex; gap: 8px; background: rgba(255,255,255,0.9);
+            padding: 6px; border-radius: 100px; transform: translateX(-20px);
+            opacity: 0; visibility: hidden; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .dream-input-container.open {
+            transform: translateX(0); opacity: 1; visibility: visible;
+        }
+        .dream-input {
+            border: none; background: transparent; outline: none;
+            padding: 4px 12px; font-family: 'Pretendard'; font-size: 0.9rem; width: 140px;
         }
 
-        @keyframes fadeOut {
-            to {
-                opacity: 0;
-            }
-        }
     </style>
 </head>
 
@@ -183,28 +116,32 @@
 
     <canvas id="world"></canvas>
 
-    <div class="hint">
-        @im_parallel<br>
-        Playground of Parallel
-    </div>
-
-    <div id="start-overlay">
-        <button id="start-btn">UNLOCK GRAVITY</button>
-    </div>
+    <div class="hint">PULL TO IGNITE<br>↗</div>
 
     <div class="ui-layer">
         <header>
-            <div class="status-bar">
-                <span class="tag">이평행패러렐</span>
-            </div>
-            <br>
+            <div class="status-bar"><span class="tag">이평행패러렐</span></div><br>
             <h1>PLAYFUL<br>REFRESHING<br>LITERAL</h1>
             <p>Creator / Musician / Designer</p>
         </header>
 
+        <!-- ✨ Gemini Dream Controls -->
+        <div class="dream-controls">
+            <button id="dream-toggle" class="dream-btn">✨ Dream</button>
+            <div class="dream-input-container" id="dream-container">
+                <input type="text" id="dream-input" class="dream-input" placeholder="e.g. Cyberpunk, Candy..." autocomplete="off">
+                <button id="dream-submit" class="dream-btn" style="padding: 8px 14px;">Go</button>
+            </div>
+        </div>
+
         <footer>
-            <div class="big-text">
-                TILT<br>YOUR<br>WORLD.
+            <!-- 3단 구성으로 변경: TILT / YOUR / WORLD -->
+            <div class="big-text-container">
+                <div class="title-row">
+                    <span class="tilt-word">TILT</span>
+                </div>
+                <div>YOUR</div>
+                <div>WORLD.</div>
             </div>
             <div class="sub-text">Do What You Wanna Do.</div>
         </footer>
@@ -212,170 +149,312 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
     <script>
-        const Engine = Matter.Engine,
-            Render = Matter.Render,
-            Runner = Matter.Runner,
-            Bodies = Matter.Bodies,
-            Composite = Matter.Composite,
-            Mouse = Matter.Mouse,
-            MouseConstraint = Matter.MouseConstraint,
-            Events = Matter.Events,
-            Body = Matter.Body;
+        // --- Gemini Configuration ---
+        const apiKey = ""; // Will be injected by runtime
+        
+        async function callGemini(prompt, isJson = false) {
+            try {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+                
+                const payload = {
+                    contents: [{ parts: [{ text: prompt }] }]
+                };
 
-        // 엔진 초기화
+                if (isJson) {
+                    payload.generationConfig = { responseMimeType: "application/json" };
+                }
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) throw new Error("Gemini API Error");
+                const data = await response.json();
+                return data.candidates[0].content.parts[0].text;
+            } catch (error) {
+                console.error("Gemini Error:", error);
+                return null;
+            }
+        }
+
+        // --- Physics Engine Setup ---
+        const Engine = Matter.Engine, Render = Matter.Render, Runner = Matter.Runner,
+              Bodies = Matter.Bodies, Composite = Matter.Composite, Mouse = Matter.Mouse,
+              MouseConstraint = Matter.MouseConstraint, Events = Matter.Events, Body = Matter.Body;
+
         const engine = Engine.create();
         const world = engine.world;
-
-        // 렌더러
         const canvas = document.getElementById('world');
         const render = Render.create({
-            element: document.body,
-            canvas: canvas,
-            engine: engine,
-            options: {
-                width: window.innerWidth,
-                height: window.innerHeight,
-                background: 'transparent',
-                wireframes: false,
-                showAngleIndicator: false
-            }
+            element: document.body, canvas: canvas, engine: engine,
+            options: { width: window.innerWidth, height: window.innerHeight, background: 'transparent', wireframes: false, showAngleIndicator: false, pixelRatio: 1 }
         });
 
-        // 벽 생성
+        // --- Dynamic World Settings ---
+        // 기본 테마(평행 님의 색상) 저장
+        const defaultTheme = {
+            colors: ['#FFD200', '#2ED573', '#00CCFF', '#FF3F6C'],
+            frictionAir: 0.005,
+            restitution: 0.9,
+            backgroundColor: '#F9F9F9',
+            gravityY: 1
+        };
+
+        // 현재 테마 (초기값은 기본 테마)
+        let currentTheme = { ...defaultTheme };
+
+        // 2. Walls
         let walls = [];
         function createWalls() {
-            const width = window.innerWidth;
-            const height = window.innerHeight;
-            const thickness = 1000;
-
-            const wallOptions = {
-                isStatic: true,
-                render: { fillStyle: 'transparent' },
-                restitution: 1.0
-            };
-
+            const w = window.innerWidth, h = window.innerHeight, t = 1000;
+            const opt = { isStatic: true, render: { fillStyle: 'transparent' }, restitution: 1.0 };
             Composite.remove(world, walls);
-
-            walls = [
-                Bodies.rectangle(width / 2, -thickness / 2, width + thickness, thickness, wallOptions),
-                Bodies.rectangle(width / 2, height + thickness / 2, width + thickness, thickness, wallOptions),
-                Bodies.rectangle(width + thickness / 2, height / 2, thickness, height + thickness, wallOptions),
-                Bodies.rectangle(-thickness / 2, height / 2, thickness, height + thickness, wallOptions)
-            ];
+            walls = [ Bodies.rectangle(w/2, -t/2, w+t, t, opt), Bodies.rectangle(w/2, h+t/2, w+t, t, opt), Bodies.rectangle(w+t/2, h/2, t, h+t, opt), Bodies.rectangle(-t/2, h/2, t, h+t, opt) ];
             Composite.add(world, walls);
         }
         createWalls();
 
-        // 오브젝트 생성 (노랑, 파랑, 빨강)
-        const colors = ['#FBD014', '#00B0F0', '#FF004E'];
-
+        // 3. Shape Factory
         function createShape(x, y) {
             const size = 30 + Math.random() * 50;
-            const color = colors[Math.floor(Math.random() * colors.length)];
+            const color = currentTheme.colors[Math.floor(Math.random() * currentTheme.colors.length)];
             const type = Math.random();
-
-            const commonOptions = {
-                render: { fillStyle: color },
-                restitution: 0.9,
-                friction: 0.001,
-                density: 0.005
+            
+            // Apply theme physics
+            const opt = { 
+                render: { fillStyle: color }, 
+                restitution: currentTheme.restitution, 
+                friction: 0.001, 
+                frictionAir: currentTheme.frictionAir, 
+                density: 0.005 
             };
-
+            
             let body;
             if (type < 0.33) {
-                body = Bodies.circle(x, y, size / 2, commonOptions);
+                body = Bodies.circle(x, y, size/2, opt);
+                body.label = "Circle";
             } else if (type < 0.66) {
-                body = Bodies.rectangle(x, y, size, size, { ...commonOptions, chamfer: { radius: 10 } });
+                body = Bodies.rectangle(x, y, size, size, { ...opt, chamfer: { radius: 10 } });
+                body.label = "Square";
             } else {
-                body = Bodies.polygon(x, y, 3, size / 1.5, {
-                    ...commonOptions,
-                    chamfer: { radius: 5 } // 둥글기 정도 (숫자가 클수록 둥글어짐)
-                });
+                body = Bodies.polygon(x, y, 3, size/1.5, { ...opt, chamfer: { radius: 5 } });
+                body.label = "Triangle";
             }
             return body;
         }
 
-        for (let i = 0; i < 20; i++) {
-            Composite.add(world, createShape(
-                Math.random() * window.innerWidth,
-                Math.random() * window.innerHeight
-            ));
+        function spawnInitialShapes() {
+            for (let i = 0; i < 20; i++) {
+                Composite.add(world, createShape(Math.random() * window.innerWidth, -Math.random() * 500 - 50));
+            }
         }
 
-        // 마우스 컨트롤
+        // 4. Switch Mechanism (Updated for better visuals & constraints)
+        let switchAnchor, switchVisualKnob, switchHitKnob;
+        let isWorldActive = false; 
+
+        function createPullSwitch() {
+            // Anchor Y를 화면 위쪽 바깥(-50)으로 이동하여 시작점이 보이지 않게 함
+            const x = window.innerWidth - 60; 
+            const y = -50; 
+            const length = 170; // 앵커가 올라간 만큼 줄 길이 조정
+
+            switchAnchor = Bodies.circle(x, y, 10, { isStatic: true, render: { visible: false } });
+            
+            switchVisualKnob = Bodies.circle(x, y + length, 4, { density: 0.0001, frictionAir: 0.05, render: { fillStyle: '#333' }, collisionFilter: { mask: 0 } });
+            switchHitKnob = Bodies.circle(x, y + length, 40, { density: 0.0001, frictionAir: 0.05, render: { visible: false } });
+            
+            // Limit Constraint: stiffness를 높여서(0.9) 일정 이상 팽팽해지지 않게 제한
+            const stringLimit = Matter.Constraint.create({ 
+                bodyA: switchAnchor, 
+                bodyB: switchVisualKnob, 
+                stiffness: 0.9, 
+                length: length * 1.3, // 최대 늘어나는 길이 제한
+                render: { visible: false } 
+            });
+            
+            const stringSpring = Matter.Constraint.create({ 
+                bodyA: switchAnchor, 
+                bodyB: switchVisualKnob, 
+                stiffness: 0.05, 
+                length: length, 
+                damping: 0.1, 
+                render: { visible: true, lineWidth: 1.5, strokeStyle: '#333' } 
+            });
+            
+            const glue = Matter.Constraint.create({ bodyA: switchVisualKnob, bodyB: switchHitKnob, stiffness: 1, length: 0, render: { visible: false } });
+            
+            Composite.add(world, [switchAnchor, switchVisualKnob, switchHitKnob, stringLimit, stringSpring, glue]);
+            return switchHitKnob;
+        }
+        const switchKnob = createPullSwitch();
+
+        // 5. Mouse/Touch & Interaction
         const mouse = Mouse.create(render.canvas);
         const mouseConstraint = MouseConstraint.create(engine, {
-            mouse: mouse,
-            constraint: {
-                stiffness: 0.2,
-                render: { visible: false }
-            }
+            mouse: mouse, constraint: { stiffness: 0.2, render: { visible: false } }
         });
         Composite.add(world, mouseConstraint);
 
-        render.canvas.addEventListener("wheel", (e) => e.preventDefault(), { passive: false });
-        render.canvas.addEventListener("touchmove", (e) => e.preventDefault(), { passive: false });
+        Render.run(render);
+        const runner = Runner.create();
+        Runner.run(runner, engine);
 
-        Events.on(mouseConstraint, 'mousedown', function (event) {
+        // 6. Resize Handler
+        window.addEventListener('resize', () => {
+            render.canvas.width = window.innerWidth; render.canvas.height = window.innerHeight;
+            render.options.width = window.innerWidth; render.options.height = window.innerHeight;
+            createWalls();
+            if (switchAnchor) {
+                const newX = window.innerWidth - 60;
+                Body.setPosition(switchAnchor, { x: newX, y: -50 });
+                Body.setPosition(switchVisualKnob, { x: newX, y: 100 });
+                Body.setPosition(switchHitKnob, { x: newX, y: 100 });
+                Body.setVelocity(switchVisualKnob, { x: 0, y: 0 });
+                Body.setVelocity(switchHitKnob, { x: 0, y: 0 });
+            }
+        });
+
+        document.body.addEventListener('touchstart', (e)=>e.preventDefault(), {passive: false});
+        document.body.addEventListener('touchmove', (e)=>e.preventDefault(), {passive: false});
+
+        // ==========================================
+        // 🔥 LOGIC & AI FEATURES
+        // ==========================================
+        
+        // 1. Click Handling: Spawn Only
+        Events.on(mouseConstraint, 'mousedown', async function (event) {
+            if (!isWorldActive) return;
+            if (event.body === switchHitKnob) return;
+
+            // Only spawn if clicked on empty space
             if (!mouseConstraint.body) {
                 Composite.add(world, createShape(event.mouse.position.x, event.mouse.position.y));
             }
         });
 
-        // 실행
-        Render.run(render);
-        const runner = Runner.create();
-        Runner.run(runner, engine);
+        // --- Feature: Dream a World (Theme Generator) ---
+        const dreamToggle = document.getElementById('dream-toggle');
+        const dreamContainer = document.getElementById('dream-container');
+        const dreamInput = document.getElementById('dream-input');
+        const dreamSubmit = document.getElementById('dream-submit');
 
-        window.addEventListener('resize', () => {
-            render.canvas.width = window.innerWidth;
-            render.canvas.height = window.innerHeight;
-            createWalls();
+        dreamToggle.addEventListener('click', () => {
+            dreamContainer.classList.toggle('open');
+            if (dreamContainer.classList.contains('open')) dreamInput.focus();
         });
 
+        dreamSubmit.addEventListener('click', async () => {
+            const concept = dreamInput.value.trim();
+            if (!concept) return;
 
-        // ==========================================
-        // 모바일 권한 요청 (Tilt 기능 활성화)
-        // ==========================================
-        const startBtn = document.getElementById('start-btn');
-        const overlay = document.getElementById('start-overlay');
+            dreamSubmit.textContent = "✨...";
+            dreamSubmit.disabled = true;
 
-        function startSensor() {
-            // 오버레이 숨김
-            overlay.style.opacity = '0';
-            setTimeout(() => overlay.style.display = 'none', 500);
+            const prompt = `You are a physics engine designer. Generate a JSON theme for a Matter.js world based on the concept: "${concept}".
+            JSON Schema:
+            {
+              "colors": ["#hex", "#hex", "#hex", "#hex"],
+              "backgroundColor": "#hex",
+              "gravityY": number (0.5 for floaty/space, 2.0 for heavy, default 1),
+              "restitution": number (0.1 for dull to 1.3 for super bouncy),
+              "frictionAir": number (0.001 to 0.1 for thick atmosphere/water)
+            }
+            Do not use markdown formatting. Just raw JSON.`;
 
-            // 기울기(Tilt) 감지
-            window.addEventListener('deviceorientation', (event) => {
-                if (event.gamma !== null) {
-                    // 감도 조절: 너무 민감하지 않게 나누기 20
-                    engine.world.gravity.x = Math.min(Math.max(event.gamma / 20, -1), 1);
-                    engine.world.gravity.y = Math.min(Math.max(event.beta / 20, -1), 1);
+            try {
+                const jsonStr = await callGemini(prompt, true);
+                if (jsonStr) {
+                    const theme = JSON.parse(jsonStr);
+                    applyTheme(theme);
+                }
+            } catch(e) {
+                console.error("Theme parsing failed", e);
+                alert("The dream was too abstract. Try again!");
+            }
+
+            dreamSubmit.textContent = "Go";
+            dreamSubmit.disabled = false;
+            dreamContainer.classList.remove('open');
+        });
+
+        function applyTheme(theme) {
+            // Update State
+            currentTheme.colors = theme.colors;
+            currentTheme.restitution = theme.restitution;
+            currentTheme.frictionAir = theme.frictionAir;
+
+            // Apply Global Styles
+            document.body.style.backgroundColor = theme.backgroundColor || "#F9F9F9";
+            
+            // Apply Physics Globals
+            if (theme.gravityY !== undefined) engine.world.gravity.scale = 0.001 * theme.gravityY;
+
+            // Respawn Shapes with new theme
+            const bodies = Composite.allBodies(world);
+            bodies.forEach(b => {
+                if (!b.isStatic && b !== switchAnchor && b !== switchVisualKnob && b !== switchHitKnob) {
+                    Composite.remove(world, b);
+                }
+            });
+            spawnInitialShapes();
+        }
+
+        // --- Standard App Logic ---
+
+        let isPulled = false;
+        Events.on(engine, 'beforeUpdate', function() {
+            // 스위치가 일정 이상 내려오면 당겨진 것으로 간주
+            if (switchHitKnob.position.y > 220) isPulled = true;
+        });
+
+        Events.on(mouseConstraint, 'enddrag', function(event) {
+            if (event.body === switchHitKnob && isPulled) {
+                if (!isWorldActive) {
+                    // 1. 처음 당겼을 때: 점화 (Ignite)
+                    igniteWorld();
+                } else {
+                    // 2. 이미 켜져 있을 때 당기면: 테마 리셋 (원래 세계로 복귀)
+                    applyTheme(defaultTheme);
+                    if (navigator.vibrate) navigator.vibrate(30);
+                }
+                isPulled = false;
+            }
+        });
+
+        function igniteWorld() {
+            isWorldActive = true; 
+            document.body.classList.add('active');
+            spawnInitialShapes();
+            if (navigator.vibrate) navigator.vibrate([50, 100, 50]);
+            
+            if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+                DeviceMotionEvent.requestPermission().then(s => {
+                    if (s === 'granted') enableTilt();
+                }).catch(e => console.log(e));
+            } else {
+                enableTilt();
+            }
+        }
+
+        function enableTilt() {
+            window.addEventListener('deviceorientation', (e) => {
+                if (e.gamma !== null) {
+                    engine.world.gravity.x = Math.min(Math.max(e.gamma / 20, -1), 1);
+                    engine.world.gravity.y = Math.min(Math.max(e.beta / 20, -1), 1);
                 }
             });
         }
 
-        startBtn.addEventListener('click', () => {
-            // iOS 13+ 권한 요청 (흔들기는 뺐지만, 기울기에도 권한이 필요합니다!)
-            if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
-                DeviceMotionEvent.requestPermission()
-                    .then(permissionState => {
-                        if (permissionState === 'granted') {
-                            startSensor();
-                        } else {
-                            alert('센서 권한을 허용해야 기울기 기능이 작동해요!');
-                            // 거절해도 화면은 보여줌
-                            overlay.style.display = 'none';
-                        }
-                    })
-                    .catch(console.error);
-            } else {
-                // 안드로이드 또는 구형 기기 (바로 시작)
-                startSensor();
-            }
+        Events.on(engine, 'collisionStart', function(event) {
+            if (!isWorldActive) return; 
+            event.pairs.forEach(pair => {
+                if ((pair.bodyA.speed + pair.bodyB.speed) > 15 && navigator.vibrate) navigator.vibrate(5);
+            });
         });
 
     </script>
 </body>
-
 </html>
