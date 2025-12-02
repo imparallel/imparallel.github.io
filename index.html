@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Playground of Parallel</title>
+    <link rel="icon" href="icon.png" type="image/png">
+    <link rel="apple-touch-icon" href="icon.png">
+
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Playground of Parallel">
+    <meta property="og:description" content="TILT YOUR WORLD.">
+    <meta property="og:image" content="thumb.png">
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Playground of Parallel">
+    <meta name="twitter:description" content="TILT YOUR WORLD.">
+    <meta name="twitter:image" content="thumb.png">
+    <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            width: 100vw;
+            height: 100vh;
+            background-color: #F9F9F9;
+            color: #111;
+            font-family: 'Pretendard', sans-serif;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+            touch-action: none;
+        }
+
+        .ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        header h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            letter-spacing: -0.05em;
+            line-height: 1.1;
+            mix-blend-mode: exclusion;
+        }
+
+        header p {
+            font-size: 0.9rem;
+            margin-top: 8px;
+            font-weight: 500;
+            opacity: 0.6;
+        }
+
+        .status-bar {
+            display: flex;
+            gap: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .tag {
+            background: #111;
+            color: #fff;
+            padding: 4px 12px;
+            border-radius: 100px;
+            text-transform: uppercase;
+        }
+
+        footer {
+            text-align: right;
+        }
+
+        footer .big-text {
+            font-size: 3.5rem;
+            font-weight: 900;
+            line-height: 0.9;
+            letter-spacing: -0.08em;
+            color: #111;
+            mix-blend-mode: exclusion;
+        }
+
+        footer .sub-text {
+            font-size: 1rem;
+            margin-top: 10px;
+            font-weight: 400;
+            mix-blend-mode: exclusion;
+        }
+
+        #world {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            outline: none;
+        }
+
+        /* 시작 버튼 오버레이 */
+        #start-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(249, 249, 249, 0.9);
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(5px);
+            transition: opacity 0.5s;
+        }
+
+        #start-btn {
+            background: #111;
+            color: #fff;
+            border: none;
+            padding: 20px 40px;
+            font-size: 1.2rem;
+            font-weight: 800;
+            border-radius: 100px;
+            cursor: pointer;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.05);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        /* 힌트 애니메이션 */
+        .hint {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ccc;
+            font-size: 0.9rem;
+            pointer-events: none;
+            text-align: center;
+            animation: fadeOut 4s forwards;
+            animation-delay: 2s;
+        }
+
+        @keyframes fadeOut {
+            to {
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <canvas id="world"></canvas>
+
+    <div class="hint">
+        @im_parallel<br>
+        Playground of Parallel
+    </div>
+
+    <div id="start-overlay">
+        <button id="start-btn">UNLOCK GRAVITY</button>
+    </div>
+
+    <div class="ui-layer">
+        <header>
+            <div class="status-bar">
+                <span class="tag">이평행패러렐</span>
+            </div>
+            <br>
+            <h1>PLAYFUL<br>REFRESHING<br>LITERAL</h1>
+            <p>Creator / Musician / Designer</p>
+        </header>
+
+        <footer>
+            <div class="big-text">
+                TILT<br>YOUR<br>WORLD.
+            </div>
+            <div class="sub-text">Do What You Wanna Do.</div>
+        </footer>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <script>
+        const Engine = Matter.Engine,
+            Render = Matter.Render,
+            Runner = Matter.Runner,
+            Bodies = Matter.Bodies,
+            Composite = Matter.Composite,
+            Mouse = Matter.Mouse,
+            MouseConstraint = Matter.MouseConstraint,
+            Events = Matter.Events,
+            Body = Matter.Body;
+
+        // 엔진 초기화
+        const engine = Engine.create();
+        const world = engine.world;
+
+        // 렌더러
+        const canvas = document.getElementById('world');
+        const render = Render.create({
+            element: document.body,
+            canvas: canvas,
+            engine: engine,
+            options: {
+                width: window.innerWidth,
+                height: window.innerHeight,
+                background: 'transparent',
+                wireframes: false,
+                showAngleIndicator: false
+            }
+        });
+
+        // 벽 생성
+        let walls = [];
+        function createWalls() {
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            const thickness = 1000;
+
+            const wallOptions = {
+                isStatic: true,
+                render: { fillStyle: 'transparent' },
+                restitution: 1.0
+            };
+
+            Composite.remove(world, walls);
+
+            walls = [
+                Bodies.rectangle(width / 2, -thickness / 2, width + thickness, thickness, wallOptions),
+                Bodies.rectangle(width / 2, height + thickness / 2, width + thickness, thickness, wallOptions),
+                Bodies.rectangle(width + thickness / 2, height / 2, thickness, height + thickness, wallOptions),
+                Bodies.rectangle(-thickness / 2, height / 2, thickness, height + thickness, wallOptions)
+            ];
+            Composite.add(world, walls);
+        }
+        createWalls();
+
+        // 오브젝트 생성 (노랑, 파랑, 빨강)
+        const colors = ['#FBD014', '#00B0F0', '#FF004E'];
+
+        function createShape(x, y) {
+            const size = 30 + Math.random() * 50;
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            const type = Math.random();
+
+            const commonOptions = {
+                render: { fillStyle: color },
+                restitution: 0.9,
+                friction: 0.001,
+                density: 0.005
+            };
+
+            let body;
+            if (type < 0.33) {
+                body = Bodies.circle(x, y, size / 2, commonOptions);
+            } else if (type < 0.66) {
+                body = Bodies.rectangle(x, y, size, size, { ...commonOptions, chamfer: { radius: 10 } });
+            } else {
+                body = Bodies.polygon(x, y, 3, size / 1.5, {
+                    ...commonOptions,
+                    chamfer: { radius: 5 } // 둥글기 정도 (숫자가 클수록 둥글어짐)
+                });
+            }
+            return body;
+        }
+
+        for (let i = 0; i < 20; i++) {
+            Composite.add(world, createShape(
+                Math.random() * window.innerWidth,
+                Math.random() * window.innerHeight
+            ));
+        }
+
+        // 마우스 컨트롤
+        const mouse = Mouse.create(render.canvas);
+        const mouseConstraint = MouseConstraint.create(engine, {
+            mouse: mouse,
+            constraint: {
+                stiffness: 0.2,
+                render: { visible: false }
+            }
+        });
+        Composite.add(world, mouseConstraint);
+
+        render.canvas.addEventListener("wheel", (e) => e.preventDefault(), { passive: false });
+        render.canvas.addEventListener("touchmove", (e) => e.preventDefault(), { passive: false });
+
+        Events.on(mouseConstraint, 'mousedown', function (event) {
+            if (!mouseConstraint.body) {
+                Composite.add(world, createShape(event.mouse.position.x, event.mouse.position.y));
+            }
+        });
+
+        // 실행
+        Render.run(render);
+        const runner = Runner.create();
+        Runner.run(runner, engine);
+
+        window.addEventListener('resize', () => {
+            render.canvas.width = window.innerWidth;
+            render.canvas.height = window.innerHeight;
+            createWalls();
+        });
+
+
+        // ==========================================
+        // 모바일 권한 요청 (Tilt 기능 활성화)
+        // ==========================================
+        const startBtn = document.getElementById('start-btn');
+        const overlay = document.getElementById('start-overlay');
+
+        function startSensor() {
+            // 오버레이 숨김
+            overlay.style.opacity = '0';
+            setTimeout(() => overlay.style.display = 'none', 500);
+
+            // 기울기(Tilt) 감지
+            window.addEventListener('deviceorientation', (event) => {
+                if (event.gamma !== null) {
+                    // 감도 조절: 너무 민감하지 않게 나누기 20
+                    engine.world.gravity.x = Math.min(Math.max(event.gamma / 20, -1), 1);
+                    engine.world.gravity.y = Math.min(Math.max(event.beta / 20, -1), 1);
+                }
+            });
+        }
+
+        startBtn.addEventListener('click', () => {
+            // iOS 13+ 권한 요청 (흔들기는 뺐지만, 기울기에도 권한이 필요합니다!)
+            if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+                DeviceMotionEvent.requestPermission()
+                    .then(permissionState => {
+                        if (permissionState === 'granted') {
+                            startSensor();
+                        } else {
+                            alert('센서 권한을 허용해야 기울기 기능이 작동해요!');
+                            // 거절해도 화면은 보여줌
+                            overlay.style.display = 'none';
+                        }
+                    })
+                    .catch(console.error);
+            } else {
+                // 안드로이드 또는 구형 기기 (바로 시작)
+                startSensor();
+            }
+        });
+
+    </script>
+</body>
+
+</html>
