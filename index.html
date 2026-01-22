@@ -406,7 +406,8 @@
         }
 
         /**
-         * [Scene 4: Orbit] - Moonrise
+         * [Scene 4: Orbit] - Infinite Chain Moonrise
+         * 수정됨: 두 개의 행성을 순환시켜 공백 없이 계속 떠오르게 함
          */
         class SceneOrbit {
             constructor(width, height, ctx) {
@@ -424,8 +425,12 @@
                 this.isDragging = false;
                 this.friction = 0.95;
                 
-                this.planetY = this.height * 1.2; 
+                this.planetY = this.height * 0.85; // 초기 위치
                 this.riseSpeed = 0.5;
+                
+                // [Infinite Chain] 행성 간 간격 (반지름 * 2.5 ~ 3)
+                // 너무 좁으면 겹치고 너무 넓으면 빔. 반지름(0.75w) * 2.8 정도
+                this.loopHeight = 0; 
 
                 this.init();
             }
@@ -434,12 +439,14 @@
                 const baseSize = Math.min(this.width, this.height);
                 this.radius = baseSize * 0.75; 
                 this.centerX = this.width / 2;
-                this.perspective = this.radius * 2.5; 
+                this.perspective = this.radius * 2.5;
+                // 루프 간격: 지름(2r) + 여유분
+                this.loopHeight = this.radius * 2.8; 
             }
 
             init() {
                 this.points = [];
-                this.planetY = Utils.randomRange(0, this.height);
+                // [Random Start] 회전각 랜덤
                 this.rotation = { 
                     x: Utils.randomRange(0, Math.PI * 2), 
                     y: Utils.randomRange(0, Math.PI * 2) 
@@ -462,22 +469,66 @@
             resize(w, h) {
                 this.width = w; this.height = h;
                 this.setupDimensions();
-                if (this.planetY > h) this.planetY = h * 0.85;
+                // 화면 리사이즈 시 위치 재조정
+                this.planetY = this.height * 0.85; 
             }
 
             updateState() {
+                // 1. Planet Rising (Infinite Loop)
                 this.planetY -= this.riseSpeed;
-                if (this.planetY < -this.radius * 1.2) {
-                    this.planetY = this.height + this.radius * 1.2;
+                
+                // 특정 높이 이상 올라가면 리셋 (loopHeight 만큼 아래로 이동)
+                // -radius * 1.2 (화면 위)보다 더 올라가면, 
+                // 아래쪽에서 올라오는 행성과 위치를 맞추기 위해 loopHeight 더함
+                // 리셋 포인트: 화면 위로 완전히 사라지는 지점 아님.
+                // Infinite Loop에서는 planetY가 계속 줄어들되,
+                // 렌더링 할 때 planetY와 planetY + loopHeight 두 개를 그리면 됨.
+                // 그러나 숫자가 무한히 작아지는 것을 방지하기 위해 주기적 리셋 필요.
+                
+                const resetThreshold = -this.radius * 1.5;
+                if (this.planetY < resetThreshold) {
+                    this.planetY += this.loopHeight;
                 }
 
+                // 2. Slow Auto Rotation (Texture Flow)
+                // 아래에서 위로 흐름
                 this.rotation.x -= 0.002; 
 
+                // 3. Manual Rotation Physics
                 this.velocity.x *= this.friction;
                 this.velocity.y *= this.friction;
                 
                 this.rotation.x += this.velocity.x;
                 this.rotation.y += this.velocity.y;
+            }
+
+            // 점들을 특정 Y 위치(offsetY)에 그리는 헬퍼 함수
+            drawPlanetAt(offsetY, projectedPoints) {
+                this.points.forEach(p => {
+                    let x = p.baseX * this.radius;
+                    let y = p.baseY * this.radius;
+                    let z = p.baseZ * this.radius;
+
+                    let x1 = x * Math.cos(this.rotation.y) - z * Math.sin(this.rotation.y);
+                    let z1 = z * Math.cos(this.rotation.y) + x * Math.sin(this.rotation.y);
+
+                    let y1 = y * Math.cos(this.rotation.x) - z1 * Math.sin(this.rotation.x);
+                    let z2 = z1 * Math.cos(this.rotation.x) + y * Math.sin(this.rotation.x);
+
+                    const scale = this.perspective / (this.perspective - z2); 
+                    const x2d = x1 * scale + this.centerX;
+                    // Apply Y offset
+                    const y2d = y1 * scale + offsetY; 
+
+                    // 화면 밖 체크 (성능)
+                    if (y2d < -this.radius || y2d > this.height + this.radius) return;
+
+                    projectedPoints.push({
+                        x: x2d, y: y2d, z: z2, scale: scale,
+                        color: p.color, baseSize: p.size,
+                        visible: z2 > -this.radius * 0.5 
+                    });
+                });
             }
 
             animate(mouse) {
@@ -499,29 +550,19 @@
 
                 this.updateState(); 
 
+                // [Rendering Two Planets]
+                // 현재 행성 + 아래에서 따라오는 행성
                 const projectedPoints = [];
-                this.points.forEach(p => {
-                    let x = p.baseX * this.radius;
-                    let y = p.baseY * this.radius;
-                    let z = p.baseZ * this.radius;
+                
+                // 1. Main Planet
+                this.drawPlanetAt(this.planetY, projectedPoints);
+                
+                // 2. Following Planet (Below)
+                // planetY + loopHeight 위치에 그림
+                // 단, 화면에 보일 때만 그리면 좋음 (drawPlanetAt 내부에서 체크)
+                this.drawPlanetAt(this.planetY + this.loopHeight, projectedPoints);
 
-                    let x1 = x * Math.cos(this.rotation.y) - z * Math.sin(this.rotation.y);
-                    let z1 = z * Math.cos(this.rotation.y) + x * Math.sin(this.rotation.y);
-
-                    let y1 = y * Math.cos(this.rotation.x) - z1 * Math.sin(this.rotation.x);
-                    let z2 = z1 * Math.cos(this.rotation.x) + y * Math.sin(this.rotation.x);
-
-                    const scale = this.perspective / (this.perspective - z2); 
-                    const x2d = x1 * scale + this.centerX;
-                    const y2d = y1 * scale + this.planetY; 
-
-                    projectedPoints.push({
-                        x: x2d, y: y2d, z: z2, scale: scale,
-                        color: p.color, baseSize: p.size,
-                        visible: z2 > -this.radius * 0.5 
-                    });
-                });
-
+                // Z-sort
                 projectedPoints.sort((a, b) => a.z - b.z);
 
                 this.ctx.lineWidth = 0.5;
@@ -542,6 +583,9 @@
                         const dy = p1.y - p2.y;
                         const distSq = dx*dx + dy*dy;
                         
+                        // 다른 행성끼리 연결되는 것 방지 (Y 거리 체크)
+                        if (Math.abs(dy) > this.radius) continue;
+
                         const maxDistSq = (this.radius * 0.35 * p1.scale) ** 2; 
 
                         if (distSq < maxDistSq) {
@@ -556,7 +600,6 @@
                 }
 
                 projectedPoints.forEach(p => {
-                    if (p.y < -50 || p.y > this.height + 50) return;
                     this.ctx.beginPath();
                     const r = p.baseSize * p.scale;
                     this.ctx.arc(p.x, p.y, Math.max(0, r), 0, Math.PI * 2);
