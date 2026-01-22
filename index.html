@@ -17,6 +17,8 @@
             background-color: #ffffff;
             font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
             -webkit-tap-highlight-color: transparent;
+            /* 터치 스크롤 방지 */
+            touch-action: none; 
         }
 
         canvas {
@@ -25,6 +27,9 @@
             top: 0;
             left: 0;
             z-index: 1;
+            /* 중요: CSS로도 꽉 채우기 */
+            width: 100%;
+            height: 100%;
         }
 
         /* [내비게이션 바 - 하단] */
@@ -141,7 +146,6 @@
 
         /**
          * [Scene 1: Float] - Rising Bubbles
-         * 수정됨: X축 움직임이 화면 밖으로 나가지 않고 튕기도록 수정 (안정감)
          */
         class SceneFloat {
             constructor(width, height, ctx) {
@@ -165,7 +169,7 @@
                         x: Utils.randomRange(r, this.width - r), 
                         y: Utils.randomRange(r, this.height - r),
                         r: r, minR: r, 
-                        dx: Utils.randomRange(-0.8, 0.8), // 속도 약간 증가
+                        dx: Utils.randomRange(-0.8, 0.8),
                         dy: Utils.randomRange(-1.5, -0.5),
                         color: Utils.randomColor()
                     });
@@ -177,13 +181,10 @@
                     p.x += p.dx;
                     p.y += p.dy;
 
-                    // Y축: 위로 사라지면 아래로 재진입 (Rising Loop)
                     if (p.y + p.r < 0) {
                         p.y = this.height + p.r;
-                        p.x = Utils.randomRange(p.r, this.width - p.r); // 새로운 X 위치
+                        p.x = Utils.randomRange(p.r, this.width - p.r);
                     }
-
-                    // X축: 벽에 튕기기 (Bounce) - 순간이동 방지
                     if (p.x > this.width - p.r || p.x < p.r) {
                         p.dx = -p.dx;
                     }
@@ -204,7 +205,6 @@
 
         /**
          * [Scene 2: Connect] - Rising Network
-         * 수정됨: X축 움직임 튕기기로 변경
          */
         class SceneConnect {
             constructor(width, height, ctx) {
@@ -217,7 +217,7 @@
             }
             init() {
                 this.particles = [];
-                const marginX = this.width * 0.05; // 5% 여백
+                const marginX = this.width * 0.05; 
 
                 for (let i = 0; i < this.options.count; i++) {
                     this.particles.push({
@@ -232,20 +232,17 @@
             }
             resize(w, h) { this.width = w; this.height = h; }
             animate(mouse) {
-                // 패딩 영역 계산 (입자가 잘리지 않게)
                 const padding = 10; 
 
                 this.particles.forEach(p => {
                     p.x += p.dx;
                     p.y += p.dy;
 
-                    // Y축 Loop
                     if (p.y + p.r < 0) {
                         p.y = this.height + p.r;
                         p.x = Utils.randomRange(padding, this.width - padding);
                     }
                     
-                    // X축 Bounce
                     if (p.x < padding || p.x > this.width - padding) {
                         p.dx = -p.dx;
                     }
@@ -279,7 +276,9 @@
          */
         class SceneGrid {
             constructor(width, height, ctx) {
-                this.width = width; this.height = height; this.ctx = ctx;
+                this.width = width;
+                this.height = height;
+                this.ctx = ctx;
                 this.points = [];
                 this.gap = width < 768 ? 60 : 80; 
                 this.mouseRadius = 100;
@@ -296,12 +295,10 @@
             }
             init() {
                 this.points = [];
-                // 버퍼 행을 넉넉하게 추가
                 this.cols = Math.ceil(this.width / this.gap) + 2;
                 this.rows = Math.ceil(this.height / this.gap) + 8;
                 this.totalGridHeight = this.rows * this.gap;
                 
-                // [Random Start] 시작 위치를 랜덤하게
                 this.scrollOffset = Utils.randomRange(0, this.totalGridHeight);
                 
                 const startX = (this.width - ((this.cols - 1) * this.gap)) / 2;
@@ -371,32 +368,23 @@
 
                         if (i < this.cols - 1) {
                             const rightP = this.points[(i + 1) * this.rows + j];
-                            // Horizontal Wrap Fix (Ghost Line) is not needed as X doesn't scroll
                             if (Math.abs(p.y - rightP.y) < this.gap * 2) {
                                 this.ctx.moveTo(p.x, p.y); 
                                 this.ctx.lineTo(rightP.x, rightP.y);
                             }
                         }
                         
-                        // [Vertical Ghost Line Fix]
                         let nextRow = j + 1;
                         if (nextRow >= this.rows) nextRow = 0;
                         const bottomP = this.points[i * this.rows + nextRow];
-                        
-                        // 일반 연결
                         if (Math.abs(p.y - bottomP.y) < this.gap * 2) {
                             this.ctx.moveTo(p.x, p.y); 
                             this.ctx.lineTo(bottomP.x, bottomP.y);
-                        } 
-                        // 끊김 발생 시 (Wrap) -> Ghost Line 그리기
-                        else {
-                            // p가 맨 아래, bottomP가 맨 위로 갔을 때
+                        } else {
                             if (p.y > bottomP.y) {
                                 this.ctx.moveTo(p.x, p.y);
                                 this.ctx.lineTo(bottomP.x, bottomP.y + this.totalGridHeight);
-                            } 
-                            // p가 맨 위, bottomP가 맨 아래 (반대 스크롤 시 발생가능하나 현재는 rising)
-                            else {
+                            } else {
                                 this.ctx.moveTo(p.x, p.y + this.totalGridHeight);
                                 this.ctx.lineTo(bottomP.x, bottomP.y);
                             }
@@ -418,8 +406,7 @@
         }
 
         /**
-         * [Scene 4: Orbit] - Moonrise (Auto Spin + Auto Rise)
-         * 수정됨: 자전 방향을 아래에서 위로(Pitch)만 설정하여 상승감 강화
+         * [Scene 4: Orbit] - Moonrise
          */
         class SceneOrbit {
             constructor(width, height, ctx) {
@@ -452,7 +439,6 @@
 
             init() {
                 this.points = [];
-                // [Random Start] 위치와 회전각 랜덤
                 this.planetY = Utils.randomRange(0, this.height);
                 this.rotation = { 
                     x: Utils.randomRange(0, Math.PI * 2), 
@@ -480,17 +466,13 @@
             }
 
             updateState() {
-                // 1. Planet Rising (Auto) - Positional
                 this.planetY -= this.riseSpeed;
                 if (this.planetY < -this.radius * 1.2) {
                     this.planetY = this.height + this.radius * 1.2;
                 }
 
-                // 2. Slow Auto Rotation (Texture Flow) - Rotational
-                // 아래에서 위로 흐르게 하기 위해 X축 회전(Pitch) 적용
                 this.rotation.x -= 0.002; 
 
-                // 3. Manual Rotation Physics (Inertia)
                 this.velocity.x *= this.friction;
                 this.velocity.y *= this.friction;
                 
@@ -545,8 +527,6 @@
                 this.ctx.lineWidth = 0.5;
                 this.ctx.beginPath();
                 
-                // [Final Line Density Tuning]
-                // 적절한 밀도를 위해 connectRange=12, distSq=0.35
                 const connectRange = 12; 
                 
                 for (let i = 0; i < projectedPoints.length; i++) {
@@ -609,9 +589,7 @@
                     orbit: { title: "Parallel Orbit", desc: "Spin your universe" } 
                 };
 
-                this.stageWidth = document.body.clientWidth;
-                this.stageHeight = document.body.clientHeight;
-                this.resize(); 
+                this.resize(); // 1. 초기 캔버스 사이즈 설정 (필수)
 
                 this.scenes = {
                     float: new SceneFloat(this.stageWidth, this.stageHeight, this.ctx),
@@ -629,21 +607,47 @@
             }
 
             resize() {
+                // [FIX: Canvas Style & Resolution Sync]
                 this.stageWidth = document.body.clientWidth;
                 this.stageHeight = document.body.clientHeight;
+
+                // 1. 내부 버퍼 (해상도) 설정
                 this.canvas.width = this.stageWidth * this.pixelRatio;
                 this.canvas.height = this.stageHeight * this.pixelRatio;
+
+                // 2. 외부 표시 크기 (CSS) 고정 - 모바일 왜곡 방지
+                this.canvas.style.width = this.stageWidth + 'px';
+                this.canvas.style.height = this.stageHeight + 'px';
+
+                // 3. 컨텍스트 스케일링
                 this.ctx.scale(this.pixelRatio, this.pixelRatio);
                 
+                // 씬들에게 전파
                 if (this.scenes) {
                     Object.values(this.scenes).forEach(scene => scene.resize(this.stageWidth, this.stageHeight));
                 }
             }
 
             initInteraction() {
-                const moveHandler = (x, y) => { this.mouse.x = x; this.mouse.y = y; };
-                window.addEventListener('mousemove', e => moveHandler(e.clientX, e.clientY));
-                window.addEventListener('touchmove', e => moveHandler(e.touches[0].clientX, e.touches[0].clientY), {passive: true});
+                // [FIX: Touch Coordinates]
+                // 캔버스 위치 기준 상대 좌표 계산
+                const moveHandler = (e) => {
+                    e.preventDefault(); // 스크롤 등 기본 동작 방지
+                    const rect = this.canvas.getBoundingClientRect();
+                    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                    
+                    this.mouse.x = clientX - rect.left;
+                    this.mouse.y = clientY - rect.top;
+                };
+
+                // 마우스
+                window.addEventListener('mousemove', moveHandler);
+                
+                // 터치 (패시브 옵션 제거 -> preventDefault 사용 위해)
+                // touchstart도 추가하여 반응성 향상
+                this.canvas.addEventListener('touchstart', moveHandler, { passive: false });
+                this.canvas.addEventListener('touchmove', moveHandler, { passive: false });
                 
                 const leaveHandler = () => { this.mouse.x = -5000; this.mouse.y = -5000; };
                 window.addEventListener('mouseout', leaveHandler);
