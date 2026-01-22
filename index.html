@@ -17,8 +17,9 @@
             background-color: #ffffff;
             font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
             -webkit-tap-highlight-color: transparent;
-            /* 터치 스크롤 방지 */
             touch-action: none; 
+            user-select: none;
+            -webkit-user-select: none;
         }
 
         canvas {
@@ -27,7 +28,6 @@
             top: 0;
             left: 0;
             z-index: 1;
-            /* 중요: CSS로도 꽉 채우기 */
             width: 100%;
             height: 100%;
         }
@@ -321,7 +321,6 @@
             resize(w, h) { this.width = w; this.height = h; this.init(); }
             animate(mouse) {
                 const time = Date.now() * 0.001; 
-                
                 this.scrollOffset -= this.scrollSpeed;
 
                 this.points.forEach(p => {
@@ -406,32 +405,28 @@
         }
 
         /**
-         * [Scene 4: Orbit] - Infinite Chain Moonrise
-         * 수정됨: 두 개의 행성을 순환시켜 공백 없이 계속 떠오르게 함
+         * [Scene 4: Orbit] - Infinite Chain Moonrise (Architect Rebuild)
+         * - 3D KNN (이웃 미리 찾기) 적용
+         * - 끊김 없는 구조 및 간격 최적화
          */
         class SceneOrbit {
             constructor(width, height, ctx) {
                 this.width = width;
                 this.height = height;
                 this.ctx = ctx;
-                this.points = [];
+                this.points = []; 
                 
-                this.setupDimensions();
-                
-                this.pointCount = width < 768 ? 150 : 300; 
+                this.pointCount = width < 768 ? 200 : 300; 
                 this.rotation = { x: 0, y: 0 };
                 this.velocity = { x: 0, y: 0 };
                 this.lastMouse = { x: 0, y: 0 };
                 this.isDragging = false;
                 this.friction = 0.95;
                 
-                this.planetY = this.height * 0.85; // 초기 위치
+                this.planetScrollY = 0; 
                 this.riseSpeed = 0.5;
                 
-                // [Infinite Chain] 행성 간 간격 (반지름 * 2.5 ~ 3)
-                // 너무 좁으면 겹치고 너무 넓으면 빔. 반지름(0.75w) * 2.8 정도
-                this.loopHeight = 0; 
-
+                this.setupDimensions();
                 this.init();
             }
 
@@ -440,18 +435,13 @@
                 this.radius = baseSize * 0.75; 
                 this.centerX = this.width / 2;
                 this.perspective = this.radius * 2.5;
-                // 루프 간격: 지름(2r) + 여유분
-                this.loopHeight = this.radius * 2.8; 
+                
+                // [FIX: Spacing] 2.6배로 간격 띄움
+                this.tileHeight = this.radius * 2.6; 
             }
 
             init() {
                 this.points = [];
-                // [Random Start] 회전각 랜덤
-                this.rotation = { 
-                    x: Utils.randomRange(0, Math.PI * 2), 
-                    y: Utils.randomRange(0, Math.PI * 2) 
-                };
-
                 const phi = Math.PI * (3 - Math.sqrt(5)); 
                 for (let i = 0; i < this.pointCount; i++) {
                     const y = 1 - (i / (this.pointCount - 1)) * 2; 
@@ -459,76 +449,57 @@
                     const theta = phi * i; 
                     const x = Math.cos(theta) * radiusAtY;
                     const z = Math.sin(theta) * radiusAtY;
+                    
+                    // neighbors 배열 초기화
                     this.points.push({
                         baseX: x, baseY: y, baseZ: z, 
-                        color: Utils.randomColor(), size: Utils.randomRange(2, 4)
+                        color: Utils.randomColor(), size: Utils.randomRange(2, 4),
+                        neighbors: [] 
                     });
                 }
+                
+                // [Architect Logic] KNN Algorithm - 3D 거리 기반 이웃 10개 미리 찾기
+                const K = 10;
+                
+                for (let i = 0; i < this.pointCount; i++) {
+                    const p1 = this.points[i];
+                    const candidates = [];
+                    
+                    for (let j = 0; j < this.pointCount; j++) {
+                        if (i === j) continue;
+                        const p2 = this.points[j];
+                        // 3D Distance Squared
+                        const dx = p1.baseX - p2.baseX;
+                        const dy = p1.baseY - p2.baseY;
+                        const dz = p1.baseZ - p2.baseZ;
+                        const distSq = dx*dx + dy*dy + dz*dz;
+                        candidates.push({ idx: j, dist: distSq });
+                    }
+                    
+                    // 거리순 정렬 후 상위 K개 저장
+                    candidates.sort((a, b) => a.dist - b.dist);
+                    p1.neighbors = candidates.slice(0, K).map(c => c.idx);
+                }
+
+                this.rotation = { 
+                    x: Utils.randomRange(0, Math.PI * 2), 
+                    y: Utils.randomRange(0, Math.PI * 2) 
+                };
             }
 
             resize(w, h) {
                 this.width = w; this.height = h;
                 this.setupDimensions();
-                // 화면 리사이즈 시 위치 재조정
-                this.planetY = this.height * 0.85; 
             }
 
             updateState() {
-                // 1. Planet Rising (Infinite Loop)
-                this.planetY -= this.riseSpeed;
-                
-                // 특정 높이 이상 올라가면 리셋 (loopHeight 만큼 아래로 이동)
-                // -radius * 1.2 (화면 위)보다 더 올라가면, 
-                // 아래쪽에서 올라오는 행성과 위치를 맞추기 위해 loopHeight 더함
-                // 리셋 포인트: 화면 위로 완전히 사라지는 지점 아님.
-                // Infinite Loop에서는 planetY가 계속 줄어들되,
-                // 렌더링 할 때 planetY와 planetY + loopHeight 두 개를 그리면 됨.
-                // 그러나 숫자가 무한히 작아지는 것을 방지하기 위해 주기적 리셋 필요.
-                
-                const resetThreshold = -this.radius * 1.5;
-                if (this.planetY < resetThreshold) {
-                    this.planetY += this.loopHeight;
-                }
+                this.planetScrollY -= this.riseSpeed;
+                this.rotation.x += 0.002; 
 
-                // 2. Slow Auto Rotation (Texture Flow)
-                // 아래에서 위로 흐름
-                this.rotation.x -= 0.002; 
-
-                // 3. Manual Rotation Physics
                 this.velocity.x *= this.friction;
                 this.velocity.y *= this.friction;
-                
                 this.rotation.x += this.velocity.x;
                 this.rotation.y += this.velocity.y;
-            }
-
-            // 점들을 특정 Y 위치(offsetY)에 그리는 헬퍼 함수
-            drawPlanetAt(offsetY, projectedPoints) {
-                this.points.forEach(p => {
-                    let x = p.baseX * this.radius;
-                    let y = p.baseY * this.radius;
-                    let z = p.baseZ * this.radius;
-
-                    let x1 = x * Math.cos(this.rotation.y) - z * Math.sin(this.rotation.y);
-                    let z1 = z * Math.cos(this.rotation.y) + x * Math.sin(this.rotation.y);
-
-                    let y1 = y * Math.cos(this.rotation.x) - z1 * Math.sin(this.rotation.x);
-                    let z2 = z1 * Math.cos(this.rotation.x) + y * Math.sin(this.rotation.x);
-
-                    const scale = this.perspective / (this.perspective - z2); 
-                    const x2d = x1 * scale + this.centerX;
-                    // Apply Y offset
-                    const y2d = y1 * scale + offsetY; 
-
-                    // 화면 밖 체크 (성능)
-                    if (y2d < -this.radius || y2d > this.height + this.radius) return;
-
-                    projectedPoints.push({
-                        x: x2d, y: y2d, z: z2, scale: scale,
-                        color: p.color, baseSize: p.size,
-                        visible: z2 > -this.radius * 0.5 
-                    });
-                });
             }
 
             animate(mouse) {
@@ -540,8 +511,8 @@
                     }
                     const dx = mouse.x - this.lastMouse.x;
                     const dy = mouse.y - this.lastMouse.y;
-                    this.velocity.x = dy * 0.005; 
-                    this.velocity.y = dx * 0.005;
+                    this.velocity.x = -dy * 0.005; 
+                    this.velocity.y = -dx * 0.005;
                     this.lastMouse.x = mouse.x;
                     this.lastMouse.y = mouse.y;
                 } else {
@@ -550,190 +521,191 @@
 
                 this.updateState(); 
 
-                // [Rendering Two Planets]
-                // 현재 행성 + 아래에서 따라오는 행성
-                const projectedPoints = [];
-                
-                // 1. Main Planet
-                this.drawPlanetAt(this.planetY, projectedPoints);
-                
-                // 2. Following Planet (Below)
-                // planetY + loopHeight 위치에 그림
-                // 단, 화면에 보일 때만 그리면 좋음 (drawPlanetAt 내부에서 체크)
-                this.drawPlanetAt(this.planetY + this.loopHeight, projectedPoints);
+                // 1. Projection (Center relative)
+                const transformed = [];
+                const cosY = Math.cos(this.rotation.y); const sinY = Math.sin(this.rotation.y);
+                const cosX = Math.cos(this.rotation.x); const sinX = Math.sin(this.rotation.x);
 
-                // Z-sort
-                projectedPoints.sort((a, b) => a.z - b.z);
+                this.points.forEach(p => {
+                    let x = p.baseX * this.radius;
+                    let y = p.baseY * this.radius;
+                    let z = p.baseZ * this.radius;
 
-                this.ctx.lineWidth = 0.5;
-                this.ctx.beginPath();
+                    let x1 = x * cosY - z * sinY;
+                    let z1 = z * cosY + x * sinY;
+                    let y1 = y * cosX - z1 * sinX;
+                    let z2 = z1 * cosX + y * sinX;
+
+                    const scale = this.perspective / (this.perspective - z2); 
+                    const x2d = x1 * scale; 
+                    const y2d = y1 * scale;
+
+                    transformed.push({
+                        x: x2d, y: y2d, z: z2, scale: scale,
+                        color: p.color, baseSize: p.size,
+                        visible: z2 > -this.radius * 0.8 
+                    });
+                });
+
+                // 2. Tiling & Rendering
+                let modOffset = this.planetScrollY % this.tileHeight;
+                if (modOffset > 0) modOffset -= this.tileHeight;
                 
-                const connectRange = 12; 
-                
-                for (let i = 0; i < projectedPoints.length; i++) {
-                    const p1 = projectedPoints[i];
-                    if (!p1.visible) continue;
+                const tilesNeeded = Math.ceil(this.height / this.tileHeight) + 3;
+                this.ctx.lineWidth = 1.0; 
 
-                    for (let j = 1; j < connectRange; j++) {
-                        if (i + j >= projectedPoints.length) break;
-                        const p2 = projectedPoints[i + j];
-                        if (!p2.visible) continue;
+                for (let i = -1; i < tilesNeeded; i++) {
+                    const tileY = modOffset + (i * this.tileHeight);
+                    // [FIX] Culling Range 4배로 확대 (절대 안 잘리게)
+                    if (tileY < -this.radius * 4 || tileY > this.height + this.radius * 4) continue;
 
-                        const dx = p1.x - p2.x;
-                        const dy = p1.y - p2.y;
-                        const distSq = dx*dx + dy*dy;
+                    const centerX = this.centerX;
+                    const centerY = tileY + (this.height * 0.85);
+
+                    // [Lines]
+                    this.ctx.beginPath();
+                    for (let j = 0; j < this.pointCount; j++) {
+                        const p1 = transformed[j];
+                        if (!p1.visible) continue;
+
+                        const p1x = p1.x + centerX;
+                        const p1y = p1.y + centerY;
                         
-                        // 다른 행성끼리 연결되는 것 방지 (Y 거리 체크)
-                        if (Math.abs(dy) > this.radius) continue;
+                        // KNN Neighbors 사용
+                        const neighbors = this.points[j].neighbors;
 
-                        const maxDistSq = (this.radius * 0.35 * p1.scale) ** 2; 
+                        for (let k = 0; k < neighbors.length; k++) {
+                            const nIdx = neighbors[k];
+                            // 중복 그리기 방지
+                            if (j > nIdx) continue;
 
-                        if (distSq < maxDistSq) {
-                            const alpha = Math.max(0.15, (p1.scale + p2.scale) / 2 * 0.3 - 0.1); 
-                            this.ctx.beginPath();
-                            this.ctx.moveTo(p1.x, p1.y);
-                            this.ctx.lineTo(p2.x, p2.y);
-                            this.ctx.strokeStyle = `rgba(150, 150, 150, ${alpha})`;
-                            this.ctx.stroke();
+                            const p2 = transformed[nIdx];
+                            if (!p2.visible) continue;
+
+                            const p2x = p2.x + centerX;
+                            const p2y = p2.y + centerY;
+
+                            // 2D 투영 거리 체크 (너무 멀면 안 그림 - 시각적 정리)
+                            const dx = p1x - p2x;
+                            const dy = p1y - p2y;
+                            const distSq = dx*dx + dy*dy;
+                            // [FIX] 연결 허용 거리 (0.5 계수) - 넉넉하게 잡아서 끊김 방지
+                            const maxDistSq = (this.radius * 0.5 * p1.scale) ** 2;
+
+                            if (distSq < maxDistSq) {
+                                // [Edge Fade]
+                                let alpha = Math.min(p1.scale, p2.scale);
+                                // Contrast 강화: 0.8 이하는 급격히 흐려짐
+                                alpha = (alpha - 0.7) * 1.5; 
+                                alpha = Math.max(0.05, Math.min(0.5, alpha)); // 최대 0.5로 제한
+
+                                this.ctx.moveTo(p1x, p1y);
+                                this.ctx.lineTo(p2x, p2y);
+                                this.ctx.strokeStyle = `rgba(80, 80, 80, ${alpha})`;
+                            }
                         }
                     }
-                }
+                    this.ctx.stroke();
 
-                projectedPoints.forEach(p => {
-                    this.ctx.beginPath();
-                    const r = p.baseSize * p.scale;
-                    this.ctx.arc(p.x, p.y, Math.max(0, r), 0, Math.PI * 2);
-                    const alpha = p.visible ? 1.0 : 0.2;
-                    this.ctx.globalAlpha = alpha;
-                    this.ctx.fillStyle = p.color;
-                    this.ctx.fill();
-                    this.ctx.globalAlpha = 1.0;
-                });
+                    // [Points]
+                    for (let j = 0; j < transformed.length; j++) {
+                        const p = transformed[j];
+                        if (!p.visible) continue;
+
+                        const px = p.x + centerX;
+                        const py = p.y + centerY;
+                        
+                        // 화면 밖 최적화 (여기는 살짝 타이트해도 됨)
+                        if (py < -50 || py > this.height + 50) continue;
+
+                        this.ctx.beginPath();
+                        const r = p.baseSize * p.scale;
+                        this.ctx.arc(px, py, Math.max(0, r), 0, Math.PI * 2);
+                        
+                        const alpha = Math.max(0.2, Math.min(1.0, (p.scale - 0.5) * 2));
+                        this.ctx.globalAlpha = alpha;
+                        this.ctx.fillStyle = p.color;
+                        this.ctx.fill();
+                        this.ctx.globalAlpha = 1.0;
+                    }
+                }
             }
         }
 
-        /**
-         * [App Manager]
-         */
         class App {
             constructor() {
                 this.canvas = document.getElementById('canvas');
                 this.ctx = this.canvas.getContext('2d');
                 this.pixelRatio = window.devicePixelRatio > 1 ? 2 : 1;
-
                 this.mouse = { x: -5000, y: -5000 };
                 this.currentScene = null;
                 this.sceneKey = 'float';
-
                 this.meta = {
                     float: { title: "Floating Ideas", desc: "Awaken the bubbles" },
                     connect: { title: "Synapse Network", desc: "Connecting the dots" },
                     grid: { title: "Elastic Grid", desc: "Push the system" },
                     orbit: { title: "Parallel Orbit", desc: "Spin your universe" } 
                 };
-
-                this.resize(); // 1. 초기 캔버스 사이즈 설정 (필수)
-
+                this.resize(); 
                 this.scenes = {
                     float: new SceneFloat(this.stageWidth, this.stageHeight, this.ctx),
                     connect: new SceneConnect(this.stageWidth, this.stageHeight, this.ctx),
                     grid: new SceneGrid(this.stageWidth, this.stageHeight, this.ctx),
                     orbit: new SceneOrbit(this.stageWidth, this.stageHeight, this.ctx)
                 };
-                
                 this.currentScene = this.scenes.float;
-
                 window.addEventListener('resize', this.resize.bind(this));
                 this.initInteraction();
-                
                 requestAnimationFrame(this.animate.bind(this));
             }
-
             resize() {
-                // [FIX: Canvas Style & Resolution Sync]
                 this.stageWidth = document.body.clientWidth;
                 this.stageHeight = document.body.clientHeight;
-
-                // 1. 내부 버퍼 (해상도) 설정
                 this.canvas.width = this.stageWidth * this.pixelRatio;
                 this.canvas.height = this.stageHeight * this.pixelRatio;
-
-                // 2. 외부 표시 크기 (CSS) 고정 - 모바일 왜곡 방지
                 this.canvas.style.width = this.stageWidth + 'px';
                 this.canvas.style.height = this.stageHeight + 'px';
-
-                // 3. 컨텍스트 스케일링
                 this.ctx.scale(this.pixelRatio, this.pixelRatio);
-                
-                // 씬들에게 전파
-                if (this.scenes) {
-                    Object.values(this.scenes).forEach(scene => scene.resize(this.stageWidth, this.stageHeight));
-                }
+                if (this.scenes) { Object.values(this.scenes).forEach(scene => scene.resize(this.stageWidth, this.stageHeight)); }
             }
-
             initInteraction() {
-                // [FIX: Touch Coordinates]
-                // 캔버스 위치 기준 상대 좌표 계산
                 const moveHandler = (e) => {
-                    e.preventDefault(); // 스크롤 등 기본 동작 방지
+                    e.preventDefault(); 
                     const rect = this.canvas.getBoundingClientRect();
-                    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-                    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-                    
-                    this.mouse.x = clientX - rect.left;
-                    this.mouse.y = clientY - rect.top;
+                    let clientX, clientY;
+                    if (e.touches && e.touches.length > 0) { clientX = e.touches[0].clientX; clientY = e.touches[0].clientY; } 
+                    else { clientX = e.clientX; clientY = e.clientY; }
+                    if (clientX !== undefined) { this.mouse.x = clientX - rect.left; this.mouse.y = clientY - rect.top; }
                 };
-
-                // 마우스
                 window.addEventListener('mousemove', moveHandler);
-                
-                // 터치 (패시브 옵션 제거 -> preventDefault 사용 위해)
-                // touchstart도 추가하여 반응성 향상
                 this.canvas.addEventListener('touchstart', moveHandler, { passive: false });
                 this.canvas.addEventListener('touchmove', moveHandler, { passive: false });
-                
                 const leaveHandler = () => { this.mouse.x = -5000; this.mouse.y = -5000; };
                 window.addEventListener('mouseout', leaveHandler);
                 window.addEventListener('touchend', leaveHandler);
             }
-
             switchScene(key, event) {
                 if(event) event.stopPropagation();
-
-                this.mouse.x = -5000; 
-                this.mouse.y = -5000;
-
+                this.mouse.x = -5000; this.mouse.y = -5000;
                 this.sceneKey = key;
                 this.currentScene = this.scenes[key];
-
                 document.querySelectorAll('nav button').forEach(btn => btn.classList.remove('active'));
                 const targetBtn = document.querySelector(`button[onclick*="'${key}'"]`);
                 if(targetBtn) targetBtn.classList.add('active');
-
                 const titleEl = document.getElementById('scene-title');
                 const descEl = document.getElementById('scene-desc');
-                
                 titleEl.innerText = this.meta[key].title;
                 descEl.innerText = this.meta[key].desc;
-                titleEl.style.opacity = 0.85; 
-                descEl.style.opacity = 0.5;
+                titleEl.style.opacity = 0.85; descEl.style.opacity = 0.5;
             }
-
             animate() {
                 requestAnimationFrame(this.animate.bind(this));
                 this.ctx.clearRect(0, 0, this.stageWidth, this.stageHeight);
-                
-                if (this.sceneKey !== 'orbit') {
-                    this.scenes.orbit.updateState();
-                }
-
+                if (this.sceneKey !== 'orbit') { this.scenes.orbit.updateState(); }
                 if (this.currentScene) this.currentScene.animate(this.mouse);
             }
         }
-
-        let app;
         window.onload = () => { app = new App(); };
-
     </script>
 </body>
 </html>
