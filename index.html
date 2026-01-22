@@ -1,381 +1,692 @@
 <!DOCTYPE html>
 <html lang="ko">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Playground of Parallel</title>
     <link rel="icon" href="icon.png" type="image/png">
     <link rel="apple-touch-icon" href="icon.png">
-
-    <meta property="og:type" content="website">
-    <meta property="og:title" content="Playground of Parallel">
-    <meta property="og:description" content="TILT YOUR WORLD.">
-    <meta property="og:image" content="thumb.png">
-
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Playground of Parallel">
-    <meta name="twitter:description" content="TILT YOUR WORLD.">
-    <meta name="twitter:image" content="thumb.png">
     <style>
-        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
-
-        * {
+        /* [스타일 설정] */
+        body, html {
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            width: 100vw;
-            height: 100vh;
-            background-color: #F9F9F9;
-            color: #111;
-            font-family: 'Pretendard', sans-serif;
+            width: 100%;
+            height: 100%;
             overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            position: relative;
-            touch-action: none;
+            background-color: #ffffff;
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+            -webkit-tap-highlight-color: transparent;
         }
 
-        .ui-layer {
+        canvas {
+            display: block;
             position: absolute;
             top: 0;
             left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 10;
-            padding: 24px;
+            z-index: 1;
+        }
+
+        /* [내비게이션 바 - 하단] */
+        nav {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
             display: flex;
-            flex-direction: column;
-            justify-content: space-between;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            padding: 8px 12px;
+            border-radius: 40px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            border: 1px solid rgba(0,0,0,0.04);
+            margin-bottom: env(safe-area-inset-bottom); 
         }
 
-        header h1 {
-            font-size: 2rem;
-            font-weight: 800;
-            letter-spacing: -0.05em;
-            line-height: 1.1;
-            mix-blend-mode: exclusion;
-        }
-
-        header p {
+        nav button {
+            border: none;
+            background: none;
+            padding: 10px 18px;
+            border-radius: 24px;
             font-size: 0.9rem;
-            margin-top: 8px;
-            font-weight: 500;
-            opacity: 0.6;
-        }
-
-        .status-bar {
-            display: flex;
-            gap: 12px;
-            font-size: 0.8rem;
-            font-weight: 600;
-        }
-
-        .tag {
-            background: #111;
-            color: #fff;
-            padding: 4px 12px;
-            border-radius: 100px;
+            font-weight: 700;
+            color: #aaa;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            letter-spacing: -0.02em;
+            white-space: nowrap;
             text-transform: uppercase;
         }
 
-        footer {
-            text-align: right;
-        }
-
-        footer .big-text {
-            font-size: 3.5rem;
-            font-weight: 900;
-            line-height: 0.9;
-            letter-spacing: -0.08em;
-            color: #111;
-            mix-blend-mode: exclusion;
-        }
-
-        footer .sub-text {
-            font-size: 1rem;
-            margin-top: 10px;
-            font-weight: 400;
-            mix-blend-mode: exclusion;
-        }
-
-        #world {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 1;
-            outline: none;
-        }
-
-        /* 시작 버튼 오버레이 */
-        #start-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(249, 249, 249, 0.9);
-            z-index: 100;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            backdrop-filter: blur(5px);
-            transition: opacity 0.5s;
-        }
-
-        #start-btn {
-            background: #111;
+        nav button.active {
+            background-color: #222;
             color: #fff;
-            border: none;
-            padding: 20px 40px;
-            font-size: 1.2rem;
-            font-weight: 800;
-            border-radius: 100px;
-            cursor: pointer;
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-            animation: pulse 2s infinite;
+            transform: scale(1.05);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.15);
         }
 
-        @keyframes pulse {
-            0% {
-                transform: scale(1);
-            }
-
-            50% {
-                transform: scale(1.05);
-            }
-
-            100% {
-                transform: scale(1);
-            }
-        }
-
-        /* 힌트 애니메이션 */
-        .hint {
+        /* [타이틀 오버레이 - 상단] */
+        #title-overlay {
             position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: #ccc;
-            font-size: 0.9rem;
+            top: 40px;
+            left: 30px;
             pointer-events: none;
-            text-align: center;
-            animation: fadeOut 4s forwards;
-            animation-delay: 2s;
+            z-index: 10;
+            color: #222;
+            mix-blend-mode: multiply;
+            transition: opacity 0.4s ease-in-out; 
         }
 
-        @keyframes fadeOut {
-            to {
-                opacity: 0;
-            }
+        h1 {
+            font-size: 2.2rem;
+            font-weight: 900;
+            margin: 0;
+            letter-spacing: -1.5px;
+            line-height: 1;
+            opacity: 0.85;
+        }
+        
+        p {
+            font-size: 0.95rem;
+            opacity: 0.5;
+            margin-top: 8px;
+            font-weight: 500;
+            letter-spacing: -0.01em;
+        }
+
+        /* 모바일 대응 */
+        @media (max-width: 768px) {
+            nav { width: 90%; justify-content: space-around; padding: 8px 4px; }
+            nav button { padding: 8px 8px; font-size: 0.8rem; }
+            #title-overlay { top: 30px; left: 25px; }
+            h1 { font-size: 1.6rem; }
         }
     </style>
 </head>
-
 <body>
 
-    <canvas id="world"></canvas>
-
-    <div class="hint">
-        @im_parallel<br>
-        Playground of Parallel
+    <!-- 타이틀 -->
+    <div id="title-overlay">
+        <h1 id="scene-title">Floating Ideas</h1>
+        <p id="scene-desc">Awaken the bubbles</p>
     </div>
 
-    <div id="start-overlay">
-        <button id="start-btn">UNLOCK GRAVITY</button>
-    </div>
+    <!-- 캔버스 -->
+    <canvas id="canvas"></canvas>
 
-    <div class="ui-layer">
-        <header>
-            <div class="status-bar">
-                <span class="tag">이평행패러렐</span>
-            </div>
-            <br>
-            <h1>PLAYFUL<br>REFRESHING<br>LITERAL</h1>
-            <p>Creator / Musician / Designer</p>
-        </header>
+    <!-- 내비게이션 -->
+    <nav id="nav-bar">
+        <button class="active" onclick="app.switchScene('float', event)">Float</button>
+        <button onclick="app.switchScene('connect', event)">Connect</button>
+        <button onclick="app.switchScene('grid', event)">Grid</button>
+        <button onclick="app.switchScene('orbit', event)">Orbit</button>
+    </nav>
 
-        <footer>
-            <div class="big-text">
-                TILT<br>YOUR<br>WORLD.
-            </div>
-            <div class="sub-text">Do What You Wanna Do.</div>
-        </footer>
-    </div>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
     <script>
-        const Engine = Matter.Engine,
-            Render = Matter.Render,
-            Runner = Matter.Runner,
-            Bodies = Matter.Bodies,
-            Composite = Matter.Composite,
-            Mouse = Matter.Mouse,
-            MouseConstraint = Matter.MouseConstraint,
-            Events = Matter.Events,
-            Body = Matter.Body;
+        /**
+         * [설정 모듈]
+         */
+        const CONFIG = {
+            colors: ['#FF3F3F', '#3F6EFF', '#FFD23F', '#3FFF82', '#9D3FFF'],
+            bg: '#ffffff'
+        };
 
-        // 엔진 초기화
-        const engine = Engine.create();
-        const world = engine.world;
+        const Utils = {
+            randomRange: (min, max) => Math.random() * (max - min) + min,
+            randomColor: () => CONFIG.colors[Math.floor(Math.random() * CONFIG.colors.length)],
+            distance: (x1, y1, x2, y2) => Math.hypot(x1 - x2, y1 - y2)
+        };
 
-        // 렌더러
-        const canvas = document.getElementById('world');
-        const render = Render.create({
-            element: document.body,
-            canvas: canvas,
-            engine: engine,
-            options: {
-                width: window.innerWidth,
-                height: window.innerHeight,
-                background: 'transparent',
-                wireframes: false,
-                showAngleIndicator: false
+        /**
+         * [Scene 1: Float] - Rising Bubbles
+         * 수정됨: X축 움직임이 화면 밖으로 나가지 않고 튕기도록 수정 (안정감)
+         */
+        class SceneFloat {
+            constructor(width, height, ctx) {
+                this.width = width;
+                this.height = height;
+                this.ctx = ctx;
+                this.particles = [];
+                this.options = { 
+                    count: width < 768 ? 40 : 80,
+                    baseSize: 8, 
+                    maxSize: 60, 
+                    mouseRadius: 150 
+                };
+                this.init();
             }
-        });
+            init() {
+                this.particles = [];
+                for (let i = 0; i < this.options.count; i++) {
+                    const r = Utils.randomRange(this.options.baseSize, this.options.baseSize * 1.5);
+                    this.particles.push({
+                        x: Utils.randomRange(r, this.width - r), 
+                        y: Utils.randomRange(r, this.height - r),
+                        r: r, minR: r, 
+                        dx: Utils.randomRange(-0.8, 0.8), // 속도 약간 증가
+                        dy: Utils.randomRange(-1.5, -0.5),
+                        color: Utils.randomColor()
+                    });
+                }
+            }
+            resize(w, h) { this.width = w; this.height = h; }
+            animate(mouse) {
+                this.particles.forEach(p => {
+                    p.x += p.dx;
+                    p.y += p.dy;
 
-        // 벽 생성
-        let walls = [];
-        function createWalls() {
-            const width = window.innerWidth;
-            const height = window.innerHeight;
-            const thickness = 1000;
+                    // Y축: 위로 사라지면 아래로 재진입 (Rising Loop)
+                    if (p.y + p.r < 0) {
+                        p.y = this.height + p.r;
+                        p.x = Utils.randomRange(p.r, this.width - p.r); // 새로운 X 위치
+                    }
 
-            const wallOptions = {
-                isStatic: true,
-                render: { fillStyle: 'transparent' },
-                restitution: 1.0
-            };
+                    // X축: 벽에 튕기기 (Bounce) - 순간이동 방지
+                    if (p.x > this.width - p.r || p.x < p.r) {
+                        p.dx = -p.dx;
+                    }
 
-            Composite.remove(world, walls);
-
-            walls = [
-                Bodies.rectangle(width / 2, -thickness / 2, width + thickness, thickness, wallOptions),
-                Bodies.rectangle(width / 2, height + thickness / 2, width + thickness, thickness, wallOptions),
-                Bodies.rectangle(width + thickness / 2, height / 2, thickness, height + thickness, wallOptions),
-                Bodies.rectangle(-thickness / 2, height / 2, thickness, height + thickness, wallOptions)
-            ];
-            Composite.add(world, walls);
-        }
-        createWalls();
-
-        // 오브젝트 생성 (노랑, 파랑, 빨강)
-        const colors = ['#FBD014', '#00B0F0', '#FF004E'];
-
-        function createShape(x, y) {
-            const size = 30 + Math.random() * 50;
-            const color = colors[Math.floor(Math.random() * colors.length)];
-            const type = Math.random();
-
-            const commonOptions = {
-                render: { fillStyle: color },
-                restitution: 0.9,
-                friction: 0.001,
-                density: 0.005
-            };
-
-            let body;
-            if (type < 0.33) {
-                body = Bodies.circle(x, y, size / 2, commonOptions);
-            } else if (type < 0.66) {
-                body = Bodies.rectangle(x, y, size, size, { ...commonOptions, chamfer: { radius: 10 } });
-            } else {
-                body = Bodies.polygon(x, y, 3, size / 1.5, {
-                    ...commonOptions,
-                    chamfer: { radius: 5 } // 둥글기 정도 (숫자가 클수록 둥글어짐)
+                    const dist = Utils.distance(mouse.x, mouse.y, p.x, p.y);
+                    if (dist < this.options.mouseRadius) {
+                        if (p.r < this.options.maxSize) p.r += 2;
+                    } else {
+                        if (p.r > p.minR) p.r -= 1;
+                    }
+                    this.ctx.beginPath();
+                    this.ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                    this.ctx.fillStyle = p.color;
+                    this.ctx.fill();
                 });
             }
-            return body;
         }
 
-        for (let i = 0; i < 20; i++) {
-            Composite.add(world, createShape(
-                Math.random() * window.innerWidth,
-                Math.random() * window.innerHeight
-            ));
-        }
-
-        // 마우스 컨트롤
-        const mouse = Mouse.create(render.canvas);
-        const mouseConstraint = MouseConstraint.create(engine, {
-            mouse: mouse,
-            constraint: {
-                stiffness: 0.2,
-                render: { visible: false }
+        /**
+         * [Scene 2: Connect] - Rising Network
+         * 수정됨: X축 움직임 튕기기로 변경
+         */
+        class SceneConnect {
+            constructor(width, height, ctx) {
+                this.width = width;
+                this.height = height;
+                this.ctx = ctx;
+                this.particles = [];
+                this.options = { count: width < 768 ? 50 : 100, connectDistance: width < 768 ? 90 : 130, mouseRadius: 200 };
+                this.init();
             }
-        });
-        Composite.add(world, mouseConstraint);
+            init() {
+                this.particles = [];
+                const marginX = this.width * 0.05; // 5% 여백
 
-        render.canvas.addEventListener("wheel", (e) => e.preventDefault(), { passive: false });
-        render.canvas.addEventListener("touchmove", (e) => e.preventDefault(), { passive: false });
-
-        Events.on(mouseConstraint, 'mousedown', function (event) {
-            if (!mouseConstraint.body) {
-                Composite.add(world, createShape(event.mouse.position.x, event.mouse.position.y));
-            }
-        });
-
-        // 실행
-        Render.run(render);
-        const runner = Runner.create();
-        Runner.run(runner, engine);
-
-        window.addEventListener('resize', () => {
-            render.canvas.width = window.innerWidth;
-            render.canvas.height = window.innerHeight;
-            createWalls();
-        });
-
-
-        // ==========================================
-        // 모바일 권한 요청 (Tilt 기능 활성화)
-        // ==========================================
-        const startBtn = document.getElementById('start-btn');
-        const overlay = document.getElementById('start-overlay');
-
-        function startSensor() {
-            // 오버레이 숨김
-            overlay.style.opacity = '0';
-            setTimeout(() => overlay.style.display = 'none', 500);
-
-            // 기울기(Tilt) 감지
-            window.addEventListener('deviceorientation', (event) => {
-                if (event.gamma !== null) {
-                    // 감도 조절: 너무 민감하지 않게 나누기 20
-                    engine.world.gravity.x = Math.min(Math.max(event.gamma / 20, -1), 1);
-                    engine.world.gravity.y = Math.min(Math.max(event.beta / 20, -1), 1);
+                for (let i = 0; i < this.options.count; i++) {
+                    this.particles.push({
+                        x: Utils.randomRange(marginX, this.width - marginX), 
+                        y: Utils.randomRange(0, this.height),
+                        dx: Utils.randomRange(-0.5, 0.5), 
+                        dy: Utils.randomRange(-1.0, -0.2),
+                        r: Utils.randomRange(4, 8), 
+                        color: Utils.randomColor()
+                    });
                 }
-            });
+            }
+            resize(w, h) { this.width = w; this.height = h; }
+            animate(mouse) {
+                // 패딩 영역 계산 (입자가 잘리지 않게)
+                const padding = 10; 
+
+                this.particles.forEach(p => {
+                    p.x += p.dx;
+                    p.y += p.dy;
+
+                    // Y축 Loop
+                    if (p.y + p.r < 0) {
+                        p.y = this.height + p.r;
+                        p.x = Utils.randomRange(padding, this.width - padding);
+                    }
+                    
+                    // X축 Bounce
+                    if (p.x < padding || p.x > this.width - padding) {
+                        p.dx = -p.dx;
+                    }
+                    
+                    this.ctx.beginPath(); this.ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                    this.ctx.fillStyle = p.color; this.ctx.fill();
+                });
+
+                for (let i = 0; i < this.particles.length; i++) {
+                    for (let j = i + 1; j < this.particles.length; j++) {
+                        const p1 = this.particles[i]; const p2 = this.particles[j];
+                        const dist = Utils.distance(p1.x, p1.y, p2.x, p2.y);
+                        if (dist < this.options.connectDistance) {
+                            let opacity = 1 - (dist / this.options.connectDistance);
+                            const mouseDist = Utils.distance(mouse.x, mouse.y, p1.x, p1.y);
+                            if (mouseDist < this.options.mouseRadius) {
+                                this.ctx.lineWidth = 1.5; opacity = Math.min(1, opacity + 0.4);
+                            } else {
+                                this.ctx.lineWidth = 0.5; opacity *= 0.5;
+                            }
+                            this.ctx.beginPath(); this.ctx.strokeStyle = `rgba(50, 50, 50, ${opacity})`;
+                            this.ctx.moveTo(p1.x, p1.y); this.ctx.lineTo(p2.x, p2.y); this.ctx.stroke();
+                        }
+                    }
+                }
+            }
         }
 
-        startBtn.addEventListener('click', () => {
-            // iOS 13+ 권한 요청 (흔들기는 뺐지만, 기울기에도 권한이 필요합니다!)
-            if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
-                DeviceMotionEvent.requestPermission()
-                    .then(permissionState => {
-                        if (permissionState === 'granted') {
-                            startSensor();
-                        } else {
-                            alert('센서 권한을 허용해야 기울기 기능이 작동해요!');
-                            // 거절해도 화면은 보여줌
-                            overlay.style.display = 'none';
-                        }
-                    })
-                    .catch(console.error);
-            } else {
-                // 안드로이드 또는 구형 기기 (바로 시작)
-                startSensor();
+        /**
+         * [Scene 3: Grid] - Seamless Infinite Rising
+         */
+        class SceneGrid {
+            constructor(width, height, ctx) {
+                this.width = width; this.height = height; this.ctx = ctx;
+                this.points = [];
+                this.gap = width < 768 ? 60 : 80; 
+                this.mouseRadius = 100;
+                this.forceFactor = 6;
+                this.returnSpeed = 0.08; 
+                this.friction = 0.92;
+                
+                this.scrollOffset = 0;
+                this.scrollSpeed = 0.8;
+
+                this.cols = 0; this.rows = 0;
+                this.totalGridHeight = 0;
+                this.init();
             }
-        });
+            init() {
+                this.points = [];
+                // 버퍼 행을 넉넉하게 추가
+                this.cols = Math.ceil(this.width / this.gap) + 2;
+                this.rows = Math.ceil(this.height / this.gap) + 8;
+                this.totalGridHeight = this.rows * this.gap;
+                
+                // [Random Start] 시작 위치를 랜덤하게
+                this.scrollOffset = Utils.randomRange(0, this.totalGridHeight);
+                
+                const startX = (this.width - ((this.cols - 1) * this.gap)) / 2;
+                const startY = -this.gap * 4; 
+
+                for (let i = 0; i < this.cols; i++) {
+                    for (let j = 0; j < this.rows; j++) {
+                        const x = startX + i * this.gap; 
+                        const y = startY + j * this.gap;
+                        this.points.push({ 
+                            baseX: x, baseY: y,
+                            x: x, y: y,
+                            vx: 0, vy: 0, 
+                            dx: 0, dy: 0,
+                            color: Utils.randomColor(), r: Utils.randomRange(3, 6) 
+                        });
+                    }
+                }
+            }
+            resize(w, h) { this.width = w; this.height = h; this.init(); }
+            animate(mouse) {
+                const time = Date.now() * 0.001; 
+                
+                this.scrollOffset -= this.scrollSpeed;
+
+                this.points.forEach(p => {
+                    let visualY = p.baseY + this.scrollOffset;
+                    let wrappedY = ((visualY % this.totalGridHeight) + this.totalGridHeight) % this.totalGridHeight;
+                    
+                    const bufferOffset = this.gap * 4;
+                    const finalBaseY = wrappedY - bufferOffset;
+                    const currentBaseX = p.baseX;
+
+                    const dist = Utils.distance(mouse.x, mouse.y, currentBaseX + p.dx, finalBaseY + p.dy);
+                    if (dist < this.mouseRadius) {
+                        const angle = Math.atan2((finalBaseY + p.dy) - mouse.y, (currentBaseX + p.dx) - mouse.x);
+                        const force = (this.mouseRadius - dist) / this.mouseRadius;
+                        const pushForce = force * this.forceFactor;
+                        p.vx += Math.cos(angle) * pushForce; 
+                        p.vy += Math.sin(angle) * pushForce;
+                    }
+
+                    const targetDx = Math.sin(time + p.baseY * 0.05) * 4;
+                    const targetDy = Math.cos(time + p.baseX * 0.05) * 4;
+
+                    p.vx += (targetDx - p.dx) * this.returnSpeed; 
+                    p.vy += (targetDy - p.dy) * this.returnSpeed;
+                    p.vx *= this.friction; 
+                    p.vy *= this.friction;
+                    p.dx += p.vx; 
+                    p.dy += p.vy;
+
+                    p.x = currentBaseX + p.dx;
+                    p.y = finalBaseY + p.dy;
+                });
+
+                this.ctx.beginPath();
+                this.ctx.strokeStyle = 'rgba(200, 200, 200, 0.25)';
+                this.ctx.lineWidth = 1;
+                
+                for (let i = 0; i < this.cols; i++) {
+                    for (let j = 0; j < this.rows; j++) {
+                        const idx = i * this.rows + j;
+                        const p = this.points[idx];
+                        
+                        if (p.y < -150 || p.y > this.height + 150) continue;
+
+                        if (i < this.cols - 1) {
+                            const rightP = this.points[(i + 1) * this.rows + j];
+                            // Horizontal Wrap Fix (Ghost Line) is not needed as X doesn't scroll
+                            if (Math.abs(p.y - rightP.y) < this.gap * 2) {
+                                this.ctx.moveTo(p.x, p.y); 
+                                this.ctx.lineTo(rightP.x, rightP.y);
+                            }
+                        }
+                        
+                        // [Vertical Ghost Line Fix]
+                        let nextRow = j + 1;
+                        if (nextRow >= this.rows) nextRow = 0;
+                        const bottomP = this.points[i * this.rows + nextRow];
+                        
+                        // 일반 연결
+                        if (Math.abs(p.y - bottomP.y) < this.gap * 2) {
+                            this.ctx.moveTo(p.x, p.y); 
+                            this.ctx.lineTo(bottomP.x, bottomP.y);
+                        } 
+                        // 끊김 발생 시 (Wrap) -> Ghost Line 그리기
+                        else {
+                            // p가 맨 아래, bottomP가 맨 위로 갔을 때
+                            if (p.y > bottomP.y) {
+                                this.ctx.moveTo(p.x, p.y);
+                                this.ctx.lineTo(bottomP.x, bottomP.y + this.totalGridHeight);
+                            } 
+                            // p가 맨 위, bottomP가 맨 아래 (반대 스크롤 시 발생가능하나 현재는 rising)
+                            else {
+                                this.ctx.moveTo(p.x, p.y + this.totalGridHeight);
+                                this.ctx.lineTo(bottomP.x, bottomP.y);
+                            }
+                        }
+                    }
+                }
+                this.ctx.stroke();
+
+                this.points.forEach(p => {
+                    if (p.y < -50 || p.y > this.height + 50) return;
+                    this.ctx.beginPath();
+                    const speed = Math.hypot(p.vx, p.vy);
+                    const dynamicR = p.r + Math.min(speed * 0.5, 3);
+                    this.ctx.fillStyle = p.color;
+                    this.ctx.arc(p.x, p.y, dynamicR, 0, Math.PI * 2);
+                    this.ctx.fill();
+                });
+            }
+        }
+
+        /**
+         * [Scene 4: Orbit] - Moonrise (Auto Spin + Auto Rise)
+         * 수정됨: 자전 방향을 아래에서 위로(Pitch)만 설정하여 상승감 강화
+         */
+        class SceneOrbit {
+            constructor(width, height, ctx) {
+                this.width = width;
+                this.height = height;
+                this.ctx = ctx;
+                this.points = [];
+                
+                this.setupDimensions();
+                
+                this.pointCount = width < 768 ? 150 : 300; 
+                this.rotation = { x: 0, y: 0 };
+                this.velocity = { x: 0, y: 0 };
+                this.lastMouse = { x: 0, y: 0 };
+                this.isDragging = false;
+                this.friction = 0.95;
+                
+                this.planetY = this.height * 1.2; 
+                this.riseSpeed = 0.5;
+
+                this.init();
+            }
+
+            setupDimensions() {
+                const baseSize = Math.min(this.width, this.height);
+                this.radius = baseSize * 0.75; 
+                this.centerX = this.width / 2;
+                this.perspective = this.radius * 2.5; 
+            }
+
+            init() {
+                this.points = [];
+                // [Random Start] 위치와 회전각 랜덤
+                this.planetY = Utils.randomRange(0, this.height);
+                this.rotation = { 
+                    x: Utils.randomRange(0, Math.PI * 2), 
+                    y: Utils.randomRange(0, Math.PI * 2) 
+                };
+
+                const phi = Math.PI * (3 - Math.sqrt(5)); 
+                for (let i = 0; i < this.pointCount; i++) {
+                    const y = 1 - (i / (this.pointCount - 1)) * 2; 
+                    const radiusAtY = Math.sqrt(1 - y * y); 
+                    const theta = phi * i; 
+                    const x = Math.cos(theta) * radiusAtY;
+                    const z = Math.sin(theta) * radiusAtY;
+                    this.points.push({
+                        baseX: x, baseY: y, baseZ: z, 
+                        color: Utils.randomColor(), size: Utils.randomRange(2, 4)
+                    });
+                }
+            }
+
+            resize(w, h) {
+                this.width = w; this.height = h;
+                this.setupDimensions();
+                if (this.planetY > h) this.planetY = h * 0.85;
+            }
+
+            updateState() {
+                // 1. Planet Rising (Auto) - Positional
+                this.planetY -= this.riseSpeed;
+                if (this.planetY < -this.radius * 1.2) {
+                    this.planetY = this.height + this.radius * 1.2;
+                }
+
+                // 2. Slow Auto Rotation (Texture Flow) - Rotational
+                // 아래에서 위로 흐르게 하기 위해 X축 회전(Pitch) 적용
+                this.rotation.x -= 0.002; 
+
+                // 3. Manual Rotation Physics (Inertia)
+                this.velocity.x *= this.friction;
+                this.velocity.y *= this.friction;
+                
+                this.rotation.x += this.velocity.x;
+                this.rotation.y += this.velocity.y;
+            }
+
+            animate(mouse) {
+                if (mouse.x > -1000) {
+                    if (!this.isDragging) {
+                        this.isDragging = true;
+                        this.lastMouse.x = mouse.x;
+                        this.lastMouse.y = mouse.y;
+                    }
+                    const dx = mouse.x - this.lastMouse.x;
+                    const dy = mouse.y - this.lastMouse.y;
+                    this.velocity.x = dy * 0.005; 
+                    this.velocity.y = dx * 0.005;
+                    this.lastMouse.x = mouse.x;
+                    this.lastMouse.y = mouse.y;
+                } else {
+                    this.isDragging = false;
+                }
+
+                this.updateState(); 
+
+                const projectedPoints = [];
+                this.points.forEach(p => {
+                    let x = p.baseX * this.radius;
+                    let y = p.baseY * this.radius;
+                    let z = p.baseZ * this.radius;
+
+                    let x1 = x * Math.cos(this.rotation.y) - z * Math.sin(this.rotation.y);
+                    let z1 = z * Math.cos(this.rotation.y) + x * Math.sin(this.rotation.y);
+
+                    let y1 = y * Math.cos(this.rotation.x) - z1 * Math.sin(this.rotation.x);
+                    let z2 = z1 * Math.cos(this.rotation.x) + y * Math.sin(this.rotation.x);
+
+                    const scale = this.perspective / (this.perspective - z2); 
+                    const x2d = x1 * scale + this.centerX;
+                    const y2d = y1 * scale + this.planetY; 
+
+                    projectedPoints.push({
+                        x: x2d, y: y2d, z: z2, scale: scale,
+                        color: p.color, baseSize: p.size,
+                        visible: z2 > -this.radius * 0.5 
+                    });
+                });
+
+                projectedPoints.sort((a, b) => a.z - b.z);
+
+                this.ctx.lineWidth = 0.5;
+                this.ctx.beginPath();
+                
+                // [Final Line Density Tuning]
+                // 적절한 밀도를 위해 connectRange=12, distSq=0.35
+                const connectRange = 12; 
+                
+                for (let i = 0; i < projectedPoints.length; i++) {
+                    const p1 = projectedPoints[i];
+                    if (!p1.visible) continue;
+
+                    for (let j = 1; j < connectRange; j++) {
+                        if (i + j >= projectedPoints.length) break;
+                        const p2 = projectedPoints[i + j];
+                        if (!p2.visible) continue;
+
+                        const dx = p1.x - p2.x;
+                        const dy = p1.y - p2.y;
+                        const distSq = dx*dx + dy*dy;
+                        
+                        const maxDistSq = (this.radius * 0.35 * p1.scale) ** 2; 
+
+                        if (distSq < maxDistSq) {
+                            const alpha = Math.max(0.15, (p1.scale + p2.scale) / 2 * 0.3 - 0.1); 
+                            this.ctx.beginPath();
+                            this.ctx.moveTo(p1.x, p1.y);
+                            this.ctx.lineTo(p2.x, p2.y);
+                            this.ctx.strokeStyle = `rgba(150, 150, 150, ${alpha})`;
+                            this.ctx.stroke();
+                        }
+                    }
+                }
+
+                projectedPoints.forEach(p => {
+                    if (p.y < -50 || p.y > this.height + 50) return;
+                    this.ctx.beginPath();
+                    const r = p.baseSize * p.scale;
+                    this.ctx.arc(p.x, p.y, Math.max(0, r), 0, Math.PI * 2);
+                    const alpha = p.visible ? 1.0 : 0.2;
+                    this.ctx.globalAlpha = alpha;
+                    this.ctx.fillStyle = p.color;
+                    this.ctx.fill();
+                    this.ctx.globalAlpha = 1.0;
+                });
+            }
+        }
+
+        /**
+         * [App Manager]
+         */
+        class App {
+            constructor() {
+                this.canvas = document.getElementById('canvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.pixelRatio = window.devicePixelRatio > 1 ? 2 : 1;
+
+                this.mouse = { x: -5000, y: -5000 };
+                this.currentScene = null;
+                this.sceneKey = 'float';
+
+                this.meta = {
+                    float: { title: "Floating Ideas", desc: "Awaken the bubbles" },
+                    connect: { title: "Synapse Network", desc: "Connecting the dots" },
+                    grid: { title: "Elastic Grid", desc: "Push the system" },
+                    orbit: { title: "Parallel Orbit", desc: "Spin your universe" } 
+                };
+
+                this.stageWidth = document.body.clientWidth;
+                this.stageHeight = document.body.clientHeight;
+                this.resize(); 
+
+                this.scenes = {
+                    float: new SceneFloat(this.stageWidth, this.stageHeight, this.ctx),
+                    connect: new SceneConnect(this.stageWidth, this.stageHeight, this.ctx),
+                    grid: new SceneGrid(this.stageWidth, this.stageHeight, this.ctx),
+                    orbit: new SceneOrbit(this.stageWidth, this.stageHeight, this.ctx)
+                };
+                
+                this.currentScene = this.scenes.float;
+
+                window.addEventListener('resize', this.resize.bind(this));
+                this.initInteraction();
+                
+                requestAnimationFrame(this.animate.bind(this));
+            }
+
+            resize() {
+                this.stageWidth = document.body.clientWidth;
+                this.stageHeight = document.body.clientHeight;
+                this.canvas.width = this.stageWidth * this.pixelRatio;
+                this.canvas.height = this.stageHeight * this.pixelRatio;
+                this.ctx.scale(this.pixelRatio, this.pixelRatio);
+                
+                if (this.scenes) {
+                    Object.values(this.scenes).forEach(scene => scene.resize(this.stageWidth, this.stageHeight));
+                }
+            }
+
+            initInteraction() {
+                const moveHandler = (x, y) => { this.mouse.x = x; this.mouse.y = y; };
+                window.addEventListener('mousemove', e => moveHandler(e.clientX, e.clientY));
+                window.addEventListener('touchmove', e => moveHandler(e.touches[0].clientX, e.touches[0].clientY), {passive: true});
+                
+                const leaveHandler = () => { this.mouse.x = -5000; this.mouse.y = -5000; };
+                window.addEventListener('mouseout', leaveHandler);
+                window.addEventListener('touchend', leaveHandler);
+            }
+
+            switchScene(key, event) {
+                if(event) event.stopPropagation();
+
+                this.mouse.x = -5000; 
+                this.mouse.y = -5000;
+
+                this.sceneKey = key;
+                this.currentScene = this.scenes[key];
+
+                document.querySelectorAll('nav button').forEach(btn => btn.classList.remove('active'));
+                const targetBtn = document.querySelector(`button[onclick*="'${key}'"]`);
+                if(targetBtn) targetBtn.classList.add('active');
+
+                const titleEl = document.getElementById('scene-title');
+                const descEl = document.getElementById('scene-desc');
+                
+                titleEl.innerText = this.meta[key].title;
+                descEl.innerText = this.meta[key].desc;
+                titleEl.style.opacity = 0.85; 
+                descEl.style.opacity = 0.5;
+            }
+
+            animate() {
+                requestAnimationFrame(this.animate.bind(this));
+                this.ctx.clearRect(0, 0, this.stageWidth, this.stageHeight);
+                
+                if (this.sceneKey !== 'orbit') {
+                    this.scenes.orbit.updateState();
+                }
+
+                if (this.currentScene) this.currentScene.animate(this.mouse);
+            }
+        }
+
+        let app;
+        window.onload = () => { app = new App(); };
 
     </script>
 </body>
-
 </html>
