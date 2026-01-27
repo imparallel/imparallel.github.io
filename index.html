@@ -16,19 +16,41 @@
     <meta name="twitter:description" content="From Dot To Universe">
     <meta name="twitter:image" content="thumb.png">
     <style>
-        /* [스타일 설정] */
+        /* [스타일 설정 - CSS 변수 활용] */
+        :root {
+            --bg-color: #ffffff;
+            --text-color: #222222;
+            --nav-bg: rgba(255, 255, 255, 0.85);
+            --nav-text: #aaaaaa;
+            --nav-active-bg: #222222;
+            --nav-active-text: #ffffff;
+            --btn-hover: #f4f4f4;
+        }
+
+        /* 다크 모드 변수 */
+        body.dark-mode {
+            --bg-color: #111111;
+            --text-color: #eeeeee;
+            --nav-bg: rgba(30, 30, 30, 0.85);
+            --nav-text: #666666;
+            --nav-active-bg: #ffffff;
+            --nav-active-text: #000000;
+            --btn-hover: #333333;
+        }
+
         body, html {
             margin: 0;
             padding: 0;
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background-color: #ffffff;
+            background-color: var(--bg-color);
             font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
             -webkit-tap-highlight-color: transparent;
             touch-action: none; 
             user-select: none;
             -webkit-user-select: none;
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
 
         canvas {
@@ -50,13 +72,14 @@
             z-index: 100;
             display: flex;
             gap: 8px;
-            background: rgba(255, 255, 255, 0.85);
+            background: var(--nav-bg);
             backdrop-filter: blur(12px);
             padding: 8px 12px;
             border-radius: 40px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-            border: 1px solid rgba(0,0,0,0.04);
+            border: 1px solid rgba(255,255,255,0.05);
             margin-bottom: env(safe-area-inset-bottom); 
+            transition: background-color 0.3s ease;
         }
 
         nav button {
@@ -66,7 +89,7 @@
             border-radius: 24px;
             font-size: 0.9rem;
             font-weight: 700;
-            color: #aaa;
+            color: var(--nav-text);
             cursor: pointer;
             transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             letter-spacing: -0.02em;
@@ -75,10 +98,14 @@
         }
 
         nav button.active {
-            background-color: #222;
-            color: #fff;
+            background-color: var(--nav-active-bg);
+            color: var(--nav-active-text);
             transform: scale(1.05);
             box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+        }
+        
+        nav button:hover:not(.active) {
+            background-color: var(--btn-hover);
         }
 
         /* [타이틀 오버레이 - 상단] */
@@ -88,9 +115,9 @@
             left: 30px;
             pointer-events: none;
             z-index: 10;
-            color: #222;
-            mix-blend-mode: multiply;
-            transition: opacity 0.4s ease-in-out; 
+            color: var(--text-color);
+            mix-blend-mode: normal;
+            transition: opacity 0.4s ease-in-out, color 0.3s ease; 
         }
 
         h1 {
@@ -110,11 +137,42 @@
             letter-spacing: -0.01em;
         }
 
+        /* [테마 토글 버튼 - 우측 상단] */
+        #theme-toggle {
+            position: absolute;
+            top: 40px;
+            right: 30px;
+            z-index: 100;
+            background: none;
+            border: none;
+            cursor: pointer;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--nav-bg);
+            backdrop-filter: blur(5px);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+        }
+        
+        #theme-toggle svg {
+            width: 20px;
+            height: 20px;
+            /* 기본은 텍스트 컬러를 따름 */
+            stroke: var(--text-color);
+            fill: none;
+            transition: all 0.3s ease;
+        }
+
         /* 모바일 대응 */
         @media (max-width: 768px) {
             nav { width: 90%; justify-content: space-around; padding: 8px 4px; }
             nav button { padding: 8px 8px; font-size: 0.8rem; }
             #title-overlay { top: 30px; left: 25px; }
+            #theme-toggle { top: 30px; right: 25px; }
             h1 { font-size: 1.6rem; }
         }
     </style>
@@ -126,6 +184,14 @@
         <h1 id="scene-title">Floating Ideas</h1>
         <p id="scene-desc">Awaken the bubbles</p>
     </div>
+
+    <!-- 테마 토글 버튼 -->
+    <button id="theme-toggle" onclick="app.toggleTheme()">
+        <!-- SVG Icon (Moon Default) -->
+        <svg id="theme-icon" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+    </button>
 
     <!-- 캔버스 -->
     <canvas id="canvas"></canvas>
@@ -139,9 +205,6 @@
     </nav>
 
     <script>
-        /**
-         * [설정 모듈]
-         */
         const CONFIG = {
             colors: ['#FF3F3F', '#3F6EFF', '#FFD23F', '#3FFF82', '#9D3FFF'],
             bg: '#ffffff'
@@ -153,9 +216,6 @@
             distance: (x1, y1, x2, y2) => Math.hypot(x1 - x2, y1 - y2)
         };
 
-        /**
-         * [Scene 1: Float] - Rising Bubbles
-         */
         class SceneFloat {
             constructor(width, height, ctx) {
                 this.width = width;
@@ -185,11 +245,10 @@
                 }
             }
             resize(w, h) { this.width = w; this.height = h; }
-            animate(mouse) {
+            animate(mouse, isDark) {
                 this.particles.forEach(p => {
                     p.x += p.dx;
                     p.y += p.dy;
-
                     if (p.y + p.r < 0) {
                         p.y = this.height + p.r;
                         p.x = Utils.randomRange(p.r, this.width - p.r);
@@ -197,7 +256,6 @@
                     if (p.x > this.width - p.r || p.x < p.r) {
                         p.dx = -p.dx;
                     }
-
                     const dist = Utils.distance(mouse.x, mouse.y, p.x, p.y);
                     if (dist < this.options.mouseRadius) {
                         if (p.r < this.options.maxSize) p.r += 2;
@@ -212,9 +270,6 @@
             }
         }
 
-        /**
-         * [Scene 2: Connect] - Rising Network
-         */
         class SceneConnect {
             constructor(width, height, ctx) {
                 this.width = width;
@@ -227,7 +282,6 @@
             init() {
                 this.particles = [];
                 const marginX = this.width * 0.05; 
-
                 for (let i = 0; i < this.options.count; i++) {
                     this.particles.push({
                         x: Utils.randomRange(marginX, this.width - marginX), 
@@ -240,26 +294,22 @@
                 }
             }
             resize(w, h) { this.width = w; this.height = h; }
-            animate(mouse) {
+            animate(mouse, isDark) {
                 const padding = 10; 
-
+                const strokeColor = isDark ? '255, 255, 255' : '50, 50, 50';
                 this.particles.forEach(p => {
                     p.x += p.dx;
                     p.y += p.dy;
-
                     if (p.y + p.r < 0) {
                         p.y = this.height + p.r;
                         p.x = Utils.randomRange(padding, this.width - padding);
                     }
-                    
                     if (p.x < padding || p.x > this.width - padding) {
                         p.dx = -p.dx;
                     }
-                    
                     this.ctx.beginPath(); this.ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
                     this.ctx.fillStyle = p.color; this.ctx.fill();
                 });
-
                 for (let i = 0; i < this.particles.length; i++) {
                     for (let j = i + 1; j < this.particles.length; j++) {
                         const p1 = this.particles[i]; const p2 = this.particles[j];
@@ -272,7 +322,8 @@
                             } else {
                                 this.ctx.lineWidth = 0.5; opacity *= 0.5;
                             }
-                            this.ctx.beginPath(); this.ctx.strokeStyle = `rgba(50, 50, 50, ${opacity})`;
+                            this.ctx.beginPath(); 
+                            this.ctx.strokeStyle = `rgba(${strokeColor}, ${opacity})`;
                             this.ctx.moveTo(p1.x, p1.y); this.ctx.lineTo(p2.x, p2.y); this.ctx.stroke();
                         }
                     }
@@ -280,9 +331,6 @@
             }
         }
 
-        /**
-         * [Scene 3: Grid] - Seamless Infinite Rising
-         */
         class SceneGrid {
             constructor(width, height, ctx) {
                 this.width = width;
@@ -294,10 +342,8 @@
                 this.forceFactor = 6;
                 this.returnSpeed = 0.08; 
                 this.friction = 0.92;
-                
                 this.scrollOffset = 0;
                 this.scrollSpeed = 0.8;
-
                 this.cols = 0; this.rows = 0;
                 this.totalGridHeight = 0;
                 this.init();
@@ -307,12 +353,9 @@
                 this.cols = Math.ceil(this.width / this.gap) + 2;
                 this.rows = Math.ceil(this.height / this.gap) + 8;
                 this.totalGridHeight = this.rows * this.gap;
-                
                 this.scrollOffset = Utils.randomRange(0, this.totalGridHeight);
-                
                 const startX = (this.width - ((this.cols - 1) * this.gap)) / 2;
                 const startY = -this.gap * 4; 
-
                 for (let i = 0; i < this.cols; i++) {
                     for (let j = 0; j < this.rows; j++) {
                         const x = startX + i * this.gap; 
@@ -328,18 +371,17 @@
                 }
             }
             resize(w, h) { this.width = w; this.height = h; this.init(); }
-            animate(mouse) {
+            animate(mouse, isDark) {
                 const time = Date.now() * 0.001; 
                 this.scrollOffset -= this.scrollSpeed;
+                const strokeStyle = isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(200, 200, 200, 0.25)';
 
                 this.points.forEach(p => {
                     let visualY = p.baseY + this.scrollOffset;
                     let wrappedY = ((visualY % this.totalGridHeight) + this.totalGridHeight) % this.totalGridHeight;
-                    
                     const bufferOffset = this.gap * 4;
                     const finalBaseY = wrappedY - bufferOffset;
                     const currentBaseX = p.baseX;
-
                     const dist = Utils.distance(mouse.x, mouse.y, currentBaseX + p.dx, finalBaseY + p.dy);
                     if (dist < this.mouseRadius) {
                         const angle = Math.atan2((finalBaseY + p.dy) - mouse.y, (currentBaseX + p.dx) - mouse.x);
@@ -348,32 +390,26 @@
                         p.vx += Math.cos(angle) * pushForce; 
                         p.vy += Math.sin(angle) * pushForce;
                     }
-
                     const targetDx = Math.sin(time + p.baseY * 0.05) * 4;
                     const targetDy = Math.cos(time + p.baseX * 0.05) * 4;
-
                     p.vx += (targetDx - p.dx) * this.returnSpeed; 
                     p.vy += (targetDy - p.dy) * this.returnSpeed;
                     p.vx *= this.friction; 
                     p.vy *= this.friction;
                     p.dx += p.vx; 
                     p.dy += p.vy;
-
                     p.x = currentBaseX + p.dx;
                     p.y = finalBaseY + p.dy;
                 });
 
                 this.ctx.beginPath();
-                this.ctx.strokeStyle = 'rgba(200, 200, 200, 0.25)';
+                this.ctx.strokeStyle = strokeStyle;
                 this.ctx.lineWidth = 1;
-                
                 for (let i = 0; i < this.cols; i++) {
                     for (let j = 0; j < this.rows; j++) {
                         const idx = i * this.rows + j;
                         const p = this.points[idx];
-                        
                         if (p.y < -150 || p.y > this.height + 150) continue;
-
                         if (i < this.cols - 1) {
                             const rightP = this.points[(i + 1) * this.rows + j];
                             if (Math.abs(p.y - rightP.y) < this.gap * 2) {
@@ -381,7 +417,6 @@
                                 this.ctx.lineTo(rightP.x, rightP.y);
                             }
                         }
-                        
                         let nextRow = j + 1;
                         if (nextRow >= this.rows) nextRow = 0;
                         const bottomP = this.points[i * this.rows + nextRow];
@@ -400,7 +435,6 @@
                     }
                 }
                 this.ctx.stroke();
-
                 this.points.forEach(p => {
                     if (p.y < -50 || p.y > this.height + 50) return;
                     this.ctx.beginPath();
@@ -413,42 +447,30 @@
             }
         }
 
-        /**
-         * [Scene 4: Orbit] - Infinite Chain Moonrise (Architect Rebuild)
-         * - 3D KNN (이웃 미리 찾기) 적용
-         * - 끊김 없는 구조 및 간격 최적화
-         */
         class SceneOrbit {
             constructor(width, height, ctx) {
                 this.width = width;
                 this.height = height;
                 this.ctx = ctx;
                 this.points = []; 
-                
                 this.pointCount = width < 768 ? 200 : 300; 
                 this.rotation = { x: 0, y: 0 };
                 this.velocity = { x: 0, y: 0 };
                 this.lastMouse = { x: 0, y: 0 };
                 this.isDragging = false;
                 this.friction = 0.95;
-                
                 this.planetScrollY = 0; 
                 this.riseSpeed = 0.5;
-                
                 this.setupDimensions();
                 this.init();
             }
-
             setupDimensions() {
                 const baseSize = Math.min(this.width, this.height);
                 this.radius = baseSize * 0.75; 
                 this.centerX = this.width / 2;
                 this.perspective = this.radius * 2.5;
-                
-                // [FIX: Spacing] 2.6배로 간격 띄움
                 this.tileHeight = this.radius * 2.6; 
             }
-
             init() {
                 this.points = [];
                 const phi = Math.PI * (3 - Math.sqrt(5)); 
@@ -458,60 +480,46 @@
                     const theta = phi * i; 
                     const x = Math.cos(theta) * radiusAtY;
                     const z = Math.sin(theta) * radiusAtY;
-                    
-                    // neighbors 배열 초기화
                     this.points.push({
                         baseX: x, baseY: y, baseZ: z, 
                         color: Utils.randomColor(), size: Utils.randomRange(2, 4),
                         neighbors: [] 
                     });
                 }
-                
-                // [Architect Logic] KNN Algorithm - 3D 거리 기반 이웃 10개 미리 찾기
                 const K = 10;
-                
                 for (let i = 0; i < this.pointCount; i++) {
                     const p1 = this.points[i];
                     const candidates = [];
-                    
                     for (let j = 0; j < this.pointCount; j++) {
                         if (i === j) continue;
                         const p2 = this.points[j];
-                        // 3D Distance Squared
                         const dx = p1.baseX - p2.baseX;
                         const dy = p1.baseY - p2.baseY;
                         const dz = p1.baseZ - p2.baseZ;
                         const distSq = dx*dx + dy*dy + dz*dz;
                         candidates.push({ idx: j, dist: distSq });
                     }
-                    
-                    // 거리순 정렬 후 상위 K개 저장
                     candidates.sort((a, b) => a.dist - b.dist);
                     p1.neighbors = candidates.slice(0, K).map(c => c.idx);
                 }
-
                 this.rotation = { 
                     x: Utils.randomRange(0, Math.PI * 2), 
                     y: Utils.randomRange(0, Math.PI * 2) 
                 };
             }
-
             resize(w, h) {
                 this.width = w; this.height = h;
                 this.setupDimensions();
             }
-
             updateState() {
                 this.planetScrollY -= this.riseSpeed;
                 this.rotation.x += 0.002; 
-
                 this.velocity.x *= this.friction;
                 this.velocity.y *= this.friction;
                 this.rotation.x += this.velocity.x;
                 this.rotation.y += this.velocity.y;
             }
-
-            animate(mouse) {
+            animate(mouse, isDark) {
                 if (mouse.x > -1000) {
                     if (!this.isDragging) {
                         this.isDragging = true;
@@ -527,110 +535,78 @@
                 } else {
                     this.isDragging = false;
                 }
-
                 this.updateState(); 
-
-                // 1. Projection (Center relative)
-                const transformed = [];
+                const baseProjected = [];
                 const cosY = Math.cos(this.rotation.y); const sinY = Math.sin(this.rotation.y);
                 const cosX = Math.cos(this.rotation.x); const sinX = Math.sin(this.rotation.x);
-
+                const rotatedPoints3D = [];
                 this.points.forEach(p => {
                     let x = p.baseX * this.radius;
                     let y = p.baseY * this.radius;
                     let z = p.baseZ * this.radius;
-
                     let x1 = x * cosY - z * sinY;
                     let z1 = z * cosY + x * sinY;
                     let y1 = y * cosX - z1 * sinX;
-                    let z2 = z1 * cosX + y * sinX;
-
+                    let z2 = z1 * cosX + y * sinX; 
+                    rotatedPoints3D.push({x: x1, y: y1, z: z2});
                     const scale = this.perspective / (this.perspective - z2); 
                     const x2d = x1 * scale; 
                     const y2d = y1 * scale;
-
-                    transformed.push({
+                    baseProjected.push({
                         x: x2d, y: y2d, z: z2, scale: scale,
                         color: p.color, baseSize: p.size,
                         visible: z2 > -this.radius * 0.8 
                     });
                 });
-
-                // 2. Tiling & Rendering
                 let modOffset = this.planetScrollY % this.tileHeight;
                 if (modOffset > 0) modOffset -= this.tileHeight;
-                
                 const tilesNeeded = Math.ceil(this.height / this.tileHeight) + 3;
                 this.ctx.lineWidth = 1.0; 
-
+                const strokeBase = isDark ? '220, 220, 220' : '80, 80, 80';
                 for (let i = -1; i < tilesNeeded; i++) {
                     const tileY = modOffset + (i * this.tileHeight);
-                    // [FIX] Culling Range 4배로 확대 (절대 안 잘리게)
                     if (tileY < -this.radius * 4 || tileY > this.height + this.radius * 4) continue;
-
                     const centerX = this.centerX;
                     const centerY = tileY + (this.height * 0.85);
-
-                    // [Lines]
                     this.ctx.beginPath();
-                    for (let j = 0; j < this.pointCount; j++) {
-                        const p1 = transformed[j];
+                    for (let j = 0; j < baseProjected.length; j++) {
+                        const p1 = baseProjected[j];
                         if (!p1.visible) continue;
-
+                        const p1_3d = rotatedPoints3D[j];
                         const p1x = p1.x + centerX;
                         const p1y = p1.y + centerY;
-                        
-                        // KNN Neighbors 사용
                         const neighbors = this.points[j].neighbors;
-
                         for (let k = 0; k < neighbors.length; k++) {
                             const nIdx = neighbors[k];
-                            // 중복 그리기 방지
                             if (j > nIdx) continue;
-
-                            const p2 = transformed[nIdx];
+                            const p2 = baseProjected[nIdx];
                             if (!p2.visible) continue;
-
-                            const p2x = p2.x + centerX;
-                            const p2y = p2.y + centerY;
-
-                            // 2D 투영 거리 체크 (너무 멀면 안 그림 - 시각적 정리)
-                            const dx = p1x - p2x;
-                            const dy = p1y - p2y;
-                            const distSq = dx*dx + dy*dy;
-                            // [FIX] 연결 허용 거리 (0.5 계수) - 넉넉하게 잡아서 끊김 방지
-                            const maxDistSq = (this.radius * 0.5 * p1.scale) ** 2;
-
-                            if (distSq < maxDistSq) {
-                                // [Edge Fade]
+                            const p2_3d = rotatedPoints3D[nIdx];
+                            const dx3 = p1_3d.x - p2_3d.x;
+                            const dy3 = p1_3d.y - p2_3d.y;
+                            const dz3 = p1_3d.z - p2_3d.z;
+                            const distSq3D = dx3*dx3 + dy3*dy3 + dz3*dz3;
+                            const maxDistSq3D = (this.radius * 0.5) ** 2;
+                            if (distSq3D < maxDistSq3D) {
                                 let alpha = Math.min(p1.scale, p2.scale);
-                                // Contrast 강화: 0.8 이하는 급격히 흐려짐
                                 alpha = (alpha - 0.7) * 1.5; 
-                                alpha = Math.max(0.05, Math.min(0.5, alpha)); // 최대 0.5로 제한
-
+                                alpha = Math.max(0.05, Math.min(0.5, alpha)); 
                                 this.ctx.moveTo(p1x, p1y);
-                                this.ctx.lineTo(p2x, p2y);
-                                this.ctx.strokeStyle = `rgba(80, 80, 80, ${alpha})`;
+                                this.ctx.lineTo(p2.x + centerX, p2.y + centerY);
+                                this.ctx.strokeStyle = `rgba(${strokeBase}, ${alpha})`;
                             }
                         }
                     }
                     this.ctx.stroke();
-
-                    // [Points]
-                    for (let j = 0; j < transformed.length; j++) {
-                        const p = transformed[j];
+                    for (let j = 0; j < baseProjected.length; j++) {
+                        const p = baseProjected[j];
                         if (!p.visible) continue;
-
                         const px = p.x + centerX;
                         const py = p.y + centerY;
-                        
-                        // 화면 밖 최적화 (여기는 살짝 타이트해도 됨)
                         if (py < -50 || py > this.height + 50) continue;
-
                         this.ctx.beginPath();
                         const r = p.baseSize * p.scale;
                         this.ctx.arc(px, py, Math.max(0, r), 0, Math.PI * 2);
-                        
                         const alpha = Math.max(0.2, Math.min(1.0, (p.scale - 0.5) * 2));
                         this.ctx.globalAlpha = alpha;
                         this.ctx.fillStyle = p.color;
@@ -649,6 +625,7 @@
                 this.mouse = { x: -5000, y: -5000 };
                 this.currentScene = null;
                 this.sceneKey = 'float';
+                this.isDarkMode = false;
                 this.meta = {
                     float: { title: "Floating Ideas", desc: "Awaken the bubbles" },
                     connect: { title: "Synapse Network", desc: "Connecting the dots" },
@@ -666,6 +643,41 @@
                 window.addEventListener('resize', this.resize.bind(this));
                 this.initInteraction();
                 requestAnimationFrame(this.animate.bind(this));
+            }
+            toggleTheme() {
+                this.isDarkMode = !this.isDarkMode;
+                if (this.isDarkMode) {
+                    document.body.classList.add('dark-mode');
+                    // [FIX] Sun Icon: Hollow Circle + Rays (Consistent Style)
+                    const svg = document.getElementById('theme-icon');
+                    // Reset content for Sun
+                    svg.innerHTML = `
+                        <!-- Center Circle (Outline) -->
+                        <circle cx="12" cy="12" r="5" fill="none" stroke="var(--text-color)" stroke-width="2"></circle>
+                        <!-- Rays (Lines) -->
+                        <line x1="12" y1="1" x2="12" y2="3" stroke="var(--text-color)" stroke-width="2" stroke-linecap="round"></line>
+                        <line x1="12" y1="21" x2="12" y2="23" stroke="var(--text-color)" stroke-width="2" stroke-linecap="round"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" stroke="var(--text-color)" stroke-width="2" stroke-linecap="round"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" stroke="var(--text-color)" stroke-width="2" stroke-linecap="round"></line>
+                        <line x1="1" y1="12" x2="3" y2="12" stroke="var(--text-color)" stroke-width="2" stroke-linecap="round"></line>
+                        <line x1="21" y1="12" x2="23" y2="12" stroke="var(--text-color)" stroke-width="2" stroke-linecap="round"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" stroke="var(--text-color)" stroke-width="2" stroke-linecap="round"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" stroke="var(--text-color)" stroke-width="2" stroke-linecap="round"></line>
+                    `;
+                    // Remove root attributes that might conflict
+                    svg.removeAttribute('fill');
+                    svg.removeAttribute('stroke');
+                } else {
+                    document.body.classList.remove('dark-mode');
+                    // Moon Icon (Default)
+                    const svg = document.getElementById('theme-icon');
+                    svg.innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>';
+                    svg.setAttribute('stroke', 'var(--text-color)');
+                    svg.setAttribute('stroke-width', '2');
+                    svg.setAttribute('fill', 'none'); 
+                    svg.setAttribute('stroke-linecap', 'round');
+                    svg.setAttribute('stroke-linejoin', 'round');
+                }
             }
             resize() {
                 this.stageWidth = document.body.clientWidth;
@@ -711,12 +723,10 @@
                 requestAnimationFrame(this.animate.bind(this));
                 this.ctx.clearRect(0, 0, this.stageWidth, this.stageHeight);
                 if (this.sceneKey !== 'orbit') { this.scenes.orbit.updateState(); }
-                if (this.currentScene) this.currentScene.animate(this.mouse);
+                if (this.currentScene) this.currentScene.animate(this.mouse, this.isDarkMode);
             }
         }
         window.onload = () => { app = new App(); };
     </script>
 </body>
 </html>
-
-
